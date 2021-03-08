@@ -1,0 +1,285 @@
+[Debug] - P[15339] 2021-02-01 15:26:28.238 Pthread ok
+[Debug] - P[15339] 2021-02-01 15:26:29.261 Pthread ok
+[Debug] - P[15339] 2021-02-01 15:26:30.264 Pthread ok
+[Debug] - P[19374] 2021-02-01 16:06:49.035 [MyIpcMQ.c:main 199]=== pthread run
+[Debug] - P[19374] 2021-02-01 16:06:49.059 Dtu_IpcMessageQueue_GetMessageId: MessageQ[id=0] OK
+[Debug] - P[19374] 2021-02-01 16:06:49.059 Dtu_IpcMessageQueue_GetMessageId: MessageQ[id=0] OK
+[Debug] - P[19374] 2021-02-01 16:06:49.060 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[Debug] - P[19374] 2021-02-01 16:06:49.060 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[===Error] - P[19374] 2021-02-01 16:06:49.060 str=[messageOk]
+
+[Debug] - P[19374] 2021-02-01 16:06:50.061 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[19374] 2021-02-01 16:06:50.062 str=[messageOk]
+
+[Debug] - P[19374] 2021-02-01 16:06:51.061 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[19374] 2021-02-01 16:06:51.064 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[19374] 2021-02-01 16:06:51.065 str=[messageOk]
+
+[Debug] - P[19374] 2021-02-01 16:06:52.063 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[19374] 2021-02-01 16:06:52.066 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[19374] 2021-02-01 16:06:52.067 str=[messageOk]
+
+[Debug] - P[19374] 2021-02-01 16:06:53.066 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[19374] 2021-02-01 16:06:53.069 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[19374] 2021-02-01 16:06:53.070 str=[messageOk]
+
+[Debug] - P[19374] 2021-02-01 16:06:54.068 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[19374] 2021-02-01 16:06:54.071 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[19374] 2021-02-01 16:06:54.072 str=[messageOk]
+
+[Debug] - P[19374] 2021-02-01 16:06:55.069 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[19374] 2021-02-01 16:06:55.086 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[19374] 2021-02-01 16:06:55.087 str=[messageOk]
+
+[Debug] - P[19374] 2021-02-01 16:06:56.071 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[19374] 2021-02-01 16:06:56.089 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[19374] 2021-02-01 16:06:56.091 str=[messageOk]
+
+[Debug] - P[19374] 2021-02-01 16:06:57.072 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[19374] 2021-02-01 16:06:57.093 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[19374] 2021-02-01 16:06:57.094 str=[messageOk]
+
+[Debug] - P[19374] 2021-02-01 16:06:58.074 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[19374] 2021-02-01 16:06:58.096 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[19374] 2021-02-01 16:06:58.098 str=[messageOk]
+
+[Debug] - P[19374] 2021-02-01 16:06:59.077 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[19374] 2021-02-01 16:06:59.101 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[19374] 2021-02-01 16:06:59.102 str=[messageOk]
+
+[Debug] - P[19374] 2021-02-01 16:07:00.079 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[19374] 2021-02-01 16:07:00.103 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[19374] 2021-02-01 16:07:00.104 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:13:48.485 [MyIpcMQ.c:main 199]=== pthread run
+[Debug] - P[20022] 2021-02-01 16:13:48.508 Dtu_IpcMessageQueue_GetMessageId: MessageQ[id=0] OK
+[Debug] - P[20022] 2021-02-01 16:13:48.508 Dtu_IpcMessageQueue_GetMessageId: MessageQ[id=0] OK
+[Debug] - P[20022] 2021-02-01 16:13:48.509 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[Debug] - P[20022] 2021-02-01 16:13:48.509 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[===Error] - P[20022] 2021-02-01 16:13:48.510 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:13:49.510 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:13:49.510 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:13:49.512 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:13:50.511 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:13:50.513 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:13:50.513 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:13:51.513 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:13:51.515 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:13:51.522 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:13:52.515 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:13:52.523 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:13:52.524 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:13:53.518 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:13:53.525 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:13:53.526 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:13:54.521 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:13:54.528 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:13:54.529 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:13:55.523 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:13:55.531 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:13:55.532 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:13:56.524 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:13:56.533 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:13:56.534 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:13:57.526 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:13:57.537 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:13:57.538 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:13:58.528 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:13:58.539 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:13:58.541 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:13:59.531 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:13:59.542 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:13:59.544 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:14:00.534 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:14:00.546 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:14:00.547 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:14:01.537 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:14:01.549 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:14:01.550 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:14:02.539 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:14:02.551 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:14:02.552 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:14:03.543 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:14:03.554 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:14:03.556 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:14:04.545 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:14:04.557 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:14:04.558 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:14:05.547 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:14:05.559 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:14:05.562 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:14:06.550 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:14:06.563 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:14:06.565 str=[messageOk]
+
+[Debug] - P[20022] 2021-02-01 16:14:07.551 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20022] 2021-02-01 16:14:07.566 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20022] 2021-02-01 16:14:07.567 str=[messageOk]
+
+[Debug] - P[20270] 2021-02-01 16:16:25.684 [MyIpcMQ.c:main 199]=== pthread run
+[Debug] - P[20270] 2021-02-01 16:16:25.685 Dtu_IpcMessageQueue_GetMessageId: MessageQ[id=0] OK
+[Debug] - P[20270] 2021-02-01 16:16:25.685 Dtu_IpcMessageQueue_GetMessageId: MessageQ[id=0] OK
+[Debug] - P[20270] 2021-02-01 16:16:25.687 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20270] 2021-02-01 16:16:25.687 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20270] 2021-02-01 16:16:25.688 str=[messageOk]
+
+[Debug] - P[20270] 2021-02-01 16:16:26.689 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[Debug] - P[20270] 2021-02-01 16:16:26.689 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[===Error] - P[20270] 2021-02-01 16:16:26.691 str=[messageOk]
+
+[Debug] - P[20270] 2021-02-01 16:16:27.691 Dtu_IpcMessageQueue_Read: msgrcv[type=3822, size=9] success
+[Debug] - P[20270] 2021-02-01 16:16:27.692 Dtu_IpcMessageQueue_Write: msgsnd[msgType=3822, sndsize=0, msgsize=9] success
+[===Error] - P[20270] 2021-02-01 16:16:27.692 str=[messageOk]
+
+[Debug] - P[33684] 2021-02-01 18:33:36.990 [MyIpcSocket.c:main 587]=== pthread run
+[Debug] - P[33795] 2021-02-01 18:34:45.451 [MyIpcSocket.c:main 587]=== pthread run
+[Debug] - P[33953] 2021-02-01 18:36:25.817 [MyIpcSocket.c:main 587]=== pthread run
+[Debug] - P[37738] 2021-02-01 19:17:37.261 [MyIpcSocket.c:main 587]=== pthread run
+[Debug] - P[38077] 2021-02-01 19:20:56.148 [MyIpcSocket.c:main 588]=== pthread run
+[Debug] - P[38307] 2021-02-01 19:23:36.861 [MyIpcSocket.c:main 588]=== pthread run
+[Debug] - P[38601] 2021-02-01 19:26:12.461 [MyIpcSocket.c:main 589]=== pthread run
+[Debug] - P[38680] 2021-02-01 19:26:42.645 [MyIpcSocket.c:main 589]=== pthread run
+[Debug] - P[38731] 2021-02-01 19:26:58.348 [MyIpcSocket.c:main 589]=== pthread run
+[Debug] - P[38836] 2021-02-01 19:27:47.477 [MyIpcSocket.c:main 590]=== pthread run
+[Debug] - P[38896] 2021-02-01 19:28:04.246 [MyIpcSocket.c:main 591]=== pthread run
+[Debug] - P[39335] 2021-02-01 19:32:25.924 [MyIpcSocket.c:main 591]=== pthread run
+[Debug] - P[39862] 2021-02-01 19:37:43.285 [MyIpcSocket.c:main 591]=== pthread run
+[Debug] - P[39950] 2021-02-01 19:38:22.604 [MyIpcSocket.c:main 591]=== pthread run
+[Debug] - P[40160] 2021-02-01 19:40:12.869 [MyIpcSocket.c:main 591]=== pthread run
+[Debug] - P[40253] 2021-02-01 19:40:53.309 [MyIpcSocket.c:main 592]=== pthread run
+[Debug] - P[40551] 2021-02-01 19:43:47.069 [MyIpcSocket.c:main 592]=== pthread run
+[Debug] - P[40666] 2021-02-01 19:44:43.351 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[40733] 2021-02-01 19:45:06.196 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[40821] 2021-02-01 19:45:41.228 [MyIpcSocket.c:main 595]=== pthread run
+[Debug] - P[41139] 2021-02-01 19:48:39.869 [MyIpcSocket.c:main 595]=== pthread run
+[Debug] - P[41346] 2021-02-01 19:50:33.740 [MyIpcSocket.c:main 595]=== pthread run
+[Debug] - P[41616] 2021-02-01 19:53:07.645 [MyIpcSocket.c:main 595]=== pthread run
+[Debug] - P[41665] 2021-02-01 19:53:37.133 [MyIpcSocket.c:main 595]=== pthread run
+[Debug] - P[41669] 2021-02-01 19:53:38.238 [MyIpcSocket.c:main 595]=== pthread run
+[Debug] - P[41676] 2021-02-01 19:53:39.220 [MyIpcSocket.c:main 595]=== pthread run
+[Debug] - P[41877] 2021-02-01 19:55:24.853 [MyIpcSocket.c:main 595]=== pthread run
+[Debug] - P[118331] 2021-02-02 09:54:35.444 [MyIpcSocket.c:main 595]=== pthread run
+[Debug] - P[118779] 2021-02-02 09:58:55.479 [MyIpcSocket.c:main 595]=== pthread run
+[Debug] - P[118802] 2021-02-02 09:59:08.694 [MyIpcSocket.c:main 595]=== pthread run
+[Debug] - P[119059] 2021-02-02 10:01:37.297 [MyIpcSocket.c:main 595]=== pthread run
+[Debug] - P[119491] 2021-02-02 10:05:47.539 [MyIpcSocket.c:main 600]=== pthread run
+[Debug] - P[119566] 2021-02-02 10:06:19.364 [MyIpcSocket.c:main 601]=== pthread run
+[Debug] - P[119972] 2021-02-02 10:10:19.899 [MyIpcSocket.c:main 601]=== pthread run
+[Debug] - P[120428] 2021-02-02 10:14:28.172 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[120521] 2021-02-02 10:15:11.901 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[122064] 2021-02-02 10:31:52.755 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[122097] 2021-02-02 10:31:59.818 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[122285] 2021-02-02 10:33:38.403 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[122428] 2021-02-02 10:34:52.082 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[122486] 2021-02-02 10:35:13.568 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[122559] 2021-02-02 10:35:42.927 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[122715] 2021-02-02 10:37:06.192 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[122745] 2021-02-02 10:37:23.759 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[122952] 2021-02-02 10:39:00.407 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[123024] 2021-02-02 10:39:29.695 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[123140] 2021-02-02 10:40:41.063 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[123150] 2021-02-02 10:40:46.941 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[123580] 2021-02-02 10:45:32.090 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[123953] 2021-02-02 10:48:53.750 [MyIpcSocket.c:main 587]=== pthread run
+[Debug] - P[123966] 2021-02-02 10:48:59.174 [MyIpcSocket.c:main 587]=== pthread run
+[Debug] - P[124021] 2021-02-02 10:49:30.354 [MyIpcSocket.c:main 587]=== pthread run
+[Debug] - P[124059] 2021-02-02 10:49:38.302 [MyIpcSocket.c:main 587]=== pthread run
+[Debug] - P[124287] 2021-02-02 10:51:36.421 [MyIpcSocket.c:main 588]=== pthread run
+[Debug] - P[124887] 2021-02-02 10:57:45.205 [MyIpcSocket.c:main 588]=== pthread run
+[Debug] - P[126331] 2021-02-02 11:13:16.606 [MyIpcSocket.c:main 588]=== pthread run
+[Debug] - P[126372] 2021-02-02 11:13:27.046 [MyIpcSocket.c:main 588]=== pthread run
+[Debug] - P[126488] 2021-02-02 11:14:23.693 [MyIpcSocket.c:main 588]=== pthread run
+[Debug] - P[126629] 2021-02-02 11:15:35.917 [MyIpcSocket.c:main 589]=== pthread run
+[Debug] - P[126932] 2021-02-02 11:18:24.927 [MyIpcSocket.c:main 590]=== pthread run
+[Debug] - P[127208] 2021-02-02 11:21:00.135 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[6598] 2021-02-02 13:06:57.242 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[6701] 2021-02-02 13:07:59.259 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[6730] 2021-02-02 13:08:02.321 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[6785] 2021-02-02 13:08:19.539 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[6964] 2021-02-02 13:09:56.075 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[7044] 2021-02-02 13:10:26.737 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[7172] 2021-02-02 13:11:47.018 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[7203] 2021-02-02 13:11:49.978 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[7307] 2021-02-02 13:12:33.506 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[7439] 2021-02-02 13:13:39.937 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[7542] 2021-02-02 13:14:29.289 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[7709] 2021-02-02 13:15:55.625 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[7728] 2021-02-02 13:16:05.515 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[12361] 2021-02-02 14:05:04.331 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[12989] 2021-02-02 14:11:09.929 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[13283] 2021-02-02 14:14:00.386 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[14374] 2021-02-02 14:24:07.466 [MyIpcSocket.c:main 582]=== pthread run
+[Debug] - P[14496] 2021-02-02 14:25:06.042 [MyIpcSocket.c:main 582]=== pthread run
+[Debug] - P[14517] 2021-02-02 14:25:18.497 [MyIpcSocket.c:main 582]=== pthread run
+[Debug] - P[14547] 2021-02-02 14:25:22.096 [MyIpcSocket.c:main 582]=== pthread run
+[Debug] - P[14670] 2021-02-02 14:26:25.440 [MyIpcSocket.c:main 582]=== pthread run
+[Debug] - P[15712] 2021-02-02 14:36:45.282 [MyIpcSocket.c:main 590]=== pthread run
+[Debug] - P[15854] 2021-02-02 14:37:56.937 [MyIpcSocket.c:main 592]=== pthread run
+[Debug] - P[15918] 2021-02-02 14:38:21.816 [MyIpcSocket.c:main 592]=== pthread run
+[Debug] - P[16044] 2021-02-02 14:39:27.430 [MyIpcSocket.c:main 592]=== pthread run
+[Debug] - P[16137] 2021-02-02 14:40:10.797 [MyIpcSocket.c:main 592]=== pthread run
+[Debug] - P[16240] 2021-02-02 14:40:57.851 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[16317] 2021-02-02 14:41:29.603 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[17009] 2021-02-02 14:48:02.650 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[17090] 2021-02-02 14:48:39.043 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[17218] 2021-02-02 14:49:41.849 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[17492] 2021-02-02 14:52:17.998 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[17638] 2021-02-02 14:53:49.381 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[17654] 2021-02-02 14:53:56.924 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[17664] 2021-02-02 14:54:01.462 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[17742] 2021-02-02 14:54:33.956 [MyIpcSocket.c:main 593]=== pthread run
+[Debug] - P[18568] 2021-02-02 15:03:13.340 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[18747] 2021-02-02 15:04:53.699 [MyIpcSocket.c:main 594]=== pthread run
+[Debug] - P[19295] 2021-02-02 15:10:00.920 [MyIpcSocket.c:main 596]=== pthread run
+[Debug] - P[19372] 2021-02-02 15:10:34.334 [MyIpcSocket.c:main 596]=== pthread run
+[Debug] - P[19484] 2021-02-02 15:11:27.710 [MyIpcSocket.c:main 597]=== pthread run
+[Debug] - P[19530] 2021-02-02 15:11:39.358 [MyIpcSocket.c:main 597]=== pthread run
+[Debug] - P[19588] 2021-02-02 15:11:58.495 [MyIpcSocket.c:main 598]=== pthread run
+[Debug] - P[20078] 2021-02-02 15:16:58.689 [MyIpcSocket.c:main 598]=== pthread run
+[Debug] - P[20564] 2021-02-02 15:21:49.712 [MyIpcSocket.c:main 598]=== pthread run
+[Debug] - P[20645] 2021-02-02 15:22:21.453 [MyIpcSocket.c:main 598]=== pthread run
+[Debug] - P[20721] 2021-02-02 15:22:53.409 [MyIpcSocket.c:main 599]=== pthread run
+[Debug] - P[20882] 2021-02-02 15:24:20.379 [MyIpcSocket.c:main 601]=== pthread run
+[Debug] - P[24452] 2021-02-02 16:00:47.358 [MyIpcSocket.c:main 686]=== pthread run
+[Debug] - P[24512] 2021-02-02 16:01:08.998 [MyIpcSocket.c:main 686]=== pthread run
+[Debug] - P[24617] 2021-02-02 16:01:58.288 [MyIpcSocket.c:main 686]=== pthread run
+[Debug] - P[24751] 2021-02-02 16:03:06.528 [MyIpcSocket.c:main 687]=== pthread run
+[Debug] - P[26454] 2021-02-02 16:19:27.038 [MyIpcSocket.c:main 773]=== pthread run
+[Debug] - P[26502] 2021-02-02 16:19:58.021 [MyIpcSocket.c:main 773]=== pthread run
+[Debug] - P[35664] 2021-02-02 17:48:49.456 [MyIpcSocket.c:main 983]=== pthread run
+[Debug] - P[35848] 2021-02-02 17:50:11.954 [MyIpcSocket.c:main 983]=== pthread run
+[Debug] - P[36112] 2021-02-02 17:52:44.777 [MyIpcSocket.c:main 984]=== pthread run
+[Debug] - P[36204] 2021-02-02 17:53:26.840 [MyIpcSocket.c:main 984]=== pthread run
+[Debug] - P[36326] 2021-02-02 17:54:24.838 [MyIpcSocket.c:main 984]=== pthread run
+[Debug] - P[36556] 2021-02-02 17:56:34.949 [MyIpcSocket.c:main 985]=== pthread run
+[Debug] - P[36611] 2021-02-02 17:56:55.115 [MyIpcSocket.c:main 984]=== pthread run
+[Debug] - P[36812] 2021-02-02 17:58:35.506 [MyIpcSocket.c:main 987]=== pthread run
+[Debug] - P[36880] 2021-02-02 17:59:02.323 [MyIpcSocket.c:main 987]=== pthread run
+[Debug] - P[36933] 2021-02-02 17:59:31.401 [MyIpcSocket.c:main 987]=== pthread run
+[Debug] - P[36963] 2021-02-02 17:59:35.393 [MyIpcSocket.c:main 988]=== pthread run
+[Debug] - P[37088] 2021-02-02 18:00:39.865 [MyIpcSocket.c:main 988]=== pthread run
+[Debug] - P[37243] 2021-02-02 18:01:57.994 [MyIpcSocket.c:main 988]=== pthread run
+[Debug] - P[37465] 2021-02-02 18:04:04.583 [MyIpcSocket.c:main 988]=== pthread run
+[Debug] - P[37520] 2021-02-02 18:04:21.191 [MyIpcSocket.c:main 988]=== pthread run
+[Debug] - P[41038] 2021-02-02 18:42:00.481 [MyIpcSocket.c:main 773]=== pthread run
+[Debug] - P[41164] 2021-02-02 18:43:02.482 [MyIpcSocket.c:main 773]=== pthread run
+[Debug] - P[41270] 2021-02-02 18:43:53.593 [MyIpcSocket.c:main 773]=== pthread run
+[Debug] - P[41378] 2021-02-02 18:44:48.657 [MyIpcSocket.c:main 773]=== pthread run
