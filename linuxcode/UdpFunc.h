@@ -159,7 +159,15 @@ public:
 	//丢帧重传
 	void FrameRetransmission();
 
+	//test
 	int UpdateFirmware(UCHAR *recvbuf);
+
+	//软件包下载后保存文件，如果失败，不会更新软件
+	int Update_SaveFile(UCHAR *recvbuf);
+	//更新固件
+	void Update_FpgaFile();
+	//更新嵌入式软件
+	void Update_LinuxFile();
 
 
 	UCHAR *p_bram_state; 		//映射的状态数据地址

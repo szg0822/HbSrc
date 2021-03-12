@@ -3,23 +3,14 @@
 * 功能描述: 日志头文件
 * 作者: 孙志刚
 * 日期: 2021/1/14
-* 备注：
+* 备注：开发日志模块功能，单元测试通过；
+        功能：1、开关控制窗口打印或者保存文件；2、文件大于5M，自动清空重写；
 ***********************************************************/
-
 
 #ifndef _LINUXLOG_H_
 #define _LINUXLOG_H_
 
 #include <stdarg.h>
-
-// #define TestLog  //终端打印开关
-// #ifdef TestLog
-    // #define TDBG (printf("[Debug] %s:%s [%u]:%s \t", __FILE__, __func__, __LINE__, __TIME__), printf)
-    // #define TERR (printf("[Error] %s:%s [%u]:%s \t", __FILE__, __func__, __LINE__, __TIME__), printf)
-// #else
-    // #define TDBG 
-    // #define TERR
-// #endif
 
 
 #define LOG_DEBUG  1   // debug

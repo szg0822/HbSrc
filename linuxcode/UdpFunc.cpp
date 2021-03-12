@@ -30,6 +30,7 @@ static char const *szsrcIp = "192.168.0.21";    //本机IP
 //static UCHAR *pUpdatedata; 		//更新固件的保存数据地址
 static UCHAR *pTail;				//指向更新固件的保存数据地址
 static UINT mUpPackNumFlag = 0;		//update数据包的个数只需要获取一次就行，这里上个锁
+static UINT mUpSuccess = 0;			//update数据包成功的标志
 
 static UINT mOffset = 0;			//offset校正模式
 static UINT mImageLen = 0;			//图像像素
@@ -248,7 +249,7 @@ void UdpFunc::PacketRetransmission(UCHAR *recvbuf)
 {
 	UCHAR *TmpBram;
 	UINT PackNum = 0;		//丢包的数量
-	UINT PackId = 0;		//包号
+	USHORT PackId = 0;		//包号
 	ULONG len = 0;
 	LogDebug("[%s:%s %u]  Start Packet Retransmission \n", __FILE__, __func__, __LINE__);
 
@@ -269,6 +270,15 @@ void UdpFunc::PacketRetransmission(UCHAR *recvbuf)
 	PackNum = (recvbuf[17] << 8) | recvbuf[18];
 	//包号
 	PackId = 0;
+	printf("==packnum=%d\n", PackNum);
+	for(int j = 0; j < PackNum; j++)
+	{
+		printf("buf[%d]=0x%x\t", j, recvbuf[19 + j]);
+		if(j % 6 == 0) {
+			printf("\n");
+		}
+
+	}
 	for (int i = 0; i < PackNum; i++) {
 		PackId = recvbuf[19 + i];
 		len = PackId * TMP_BUFFER_SIZE;
@@ -277,11 +287,14 @@ void UdpFunc::PacketRetransmission(UCHAR *recvbuf)
 		pSendBuf[HB_ID7] = (PackId ) & 0xff;
 		pSendBuf[HB_ID8] = (PackId >> 8) & 0xff;
 		pSendBuf[HB_ID9] = (PackId >> 16) & 0xff;
+		//printf("===PackId=%d==len=%ld\n", PackId, len);
 		memcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], TmpBram, TMP_BUFFER_SIZE);
+		//printf("===bram2\n");
 		if (0 != UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE)) {
 			LogError("[%s:%s %u]  UDP_SEND Failed! \n", __FILE__, __func__, __LINE__);
 		}
 	}
+	printf("22\n");
 	UploadStateCmd(CMDU_REPORT, FPD_STATUS_READY);
 	LogDebug("[%s:%s %u]  Packet Retransmission Success! Packet_num=%d \n", __FILE__, __func__, __LINE__, PackNum);	
 }
@@ -338,6 +351,97 @@ int HBExecShell(const char *shell)
 	return 0;
 }
 
+/*********************************************************
+* 函 数 名: Update_SaveFile
+* 功能描述: 软件包下载后保存文件，如果失败，不会更新软件
+* 参数说明:	recvbuf：接收的每包数据
+* 返 回 值：0：成功；    
+* 备    注:
+*********************************************************/
+int UdpFunc::Update_SaveFile(UCHAR *recvbuf)
+{
+	static UINT PackNum;
+	FILE *fp;
+	UCHAR *pRecvCmd;
+	
+	if (NULL == recvbuf) {
+		LogError("[%s:%s %u]  recvbuf NULL \n", __FILE__, __func__, __LINE__);
+		return -1;
+	}
+	if (NULL == pTail) {
+		LogError("[%s:%s %u]  pTail NULL \n", __FILE__, __func__, __LINE__);
+		return -2;
+	}
+	//ID8+ID9=包的数量
+	//每次升级只进来一次
+	if (mUpPackNumFlag == 0) {
+		pRecvCmd = (UCHAR *)(recvbuf + OFFSET_PACKAGE_CMD);
+		LogDebug("[%s:%s %u]  Recv XDStatic Cmd=0x%.2x \n", __FILE__, __func__, __LINE__,  *(pRecvCmd));
+		PackNum = (recvbuf[HB_ID8] << 8) | recvbuf[HB_ID9];
+		LogDebug("[%s:%s %u]  Total_PackNum = %d\n", __FILE__, __func__, __LINE__, PackNum);
+		mUpPackNumFlag = 1;
+	}
+	if (mPackCount == PackNum - 1) {
+		memcpy(pTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, 270);
+		pTail += 270;
+		// UCHAR tmpbuf[1024];
+		// memcpy(tmpbuf, recvbuf + OFFSET_PACKAGE_IMAGESLICE, TMP_BUFFER_SIZE);
+		// for(int i = 0; i < 1024; i++) {
+			// printf("buf[%d]=%x\t", i, tmpbuf[i]);
+			// if (i % 10 == 0)
+				// printf("\n");
+		// }
+	}	
+	else {
+		memcpy(pTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, TMP_BUFFER_SIZE);
+		pTail += TMP_BUFFER_SIZE;
+	}
+
+	mPackCount++;
+	
+	//printf("packnum=%d, count=%d\n", PackNum, mPackCount);
+	if (mPackCount == PackNum) {
+		pTail = pUpdatedata;
+		if((fp=fopen("/home/root/UpFile","wt+"))==NULL)
+		{
+			LogError("[%s:%s %u]  open </home/root/UpFire.bit> file error \n", __FILE__, __func__, __LINE__);
+			return -1;
+		}
+		fwrite(pUpdatedata, sizeof(UCHAR), (PackNum - 1) * TMP_BUFFER_SIZE + 270, fp);			
+		fclose(fp);
+		
+		LogDebug("[%s:%s %u]  save file[/home/root/UpFile] successful!\n", __FILE__, __func__, __LINE__);
+		mUpSuccess = 1;
+	}
+	return 0;
+}
+
+void UdpFunc::Update_FpgaFile()
+{
+	//update System_Top.bit
+	int ret = -1;
+	HBExecShell("cp -f /home/root/System_Top.bit /home/root/System_Top.bit_save");
+	ret = HBExecShell("cp -f /home/root/UpFile /home/root/System_Top.bit");
+	if (ret == 0) {
+		LogDebug("[%s:%s %u]  Update_FpgaFile </home/root/System_Top.bit> successfun! Restarting...\n", __FILE__, __func__, __LINE__);
+		HBExecShell("reboot");
+	}else {
+		HBExecShell("cp -f /home/root/System_Top.bit_save /home/root/System_Top.bit");
+	}
+}
+
+void UdpFunc::Update_LinuxFile()
+{
+	//update demo
+	int ret = -1;
+	ret = HBExecShell("kill $(pidof demo)");
+	if (0 == ret) {
+		HBExecShell("cp -f /home/root/UpFile /home/root/demo");
+		LogDebug("[%s:%s %u]  Update_LinuxFile </home/root/demo> successfun! Restarting...\n", __FILE__, __func__, __LINE__);
+		HBExecShell("reboot");
+	}
+}
+
 int UdpFunc::UpdateFirmware(UCHAR *recvbuf)
 {
 	static UINT PackNum;
@@ -361,9 +465,21 @@ int UdpFunc::UpdateFirmware(UCHAR *recvbuf)
 		LogDebug("[%s:%s %u]  Total_PackNum = %d\n", __FILE__, __func__, __LINE__, PackNum);
 		mUpPackNumFlag = 1;
 	}
-		
-	memcpy(pTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, TMP_BUFFER_SIZE);
-	pTail += TMP_BUFFER_SIZE;
+	if (mPackCount == PackNum - 1) {
+		memcpy(pTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, 270);
+		pTail += 270;
+		// UCHAR tmpbuf[1024];
+		// memcpy(tmpbuf, recvbuf + OFFSET_PACKAGE_IMAGESLICE, TMP_BUFFER_SIZE);
+		// for(int i = 0; i < 1024; i++) {
+			// printf("buf[%d]=%x\t", i, tmpbuf[i]);
+			// if (i % 10 == 0)
+				// printf("\n");
+		// }
+	}	
+	else {
+		memcpy(pTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, TMP_BUFFER_SIZE);
+		pTail += TMP_BUFFER_SIZE;
+	}
 
 	mPackCount++;
 	
@@ -375,7 +491,7 @@ int UdpFunc::UpdateFirmware(UCHAR *recvbuf)
 			LogError("[%s:%s %u]  open </home/root/UpFire.bit> file error \n", __FILE__, __func__, __LINE__);
 			return -1;
 		}
-		fwrite(pUpdatedata, sizeof(UCHAR), PackNum * TMP_BUFFER_SIZE, fp);			
+		fwrite(pUpdatedata, sizeof(UCHAR), (PackNum - 1) * TMP_BUFFER_SIZE + 270, fp);			
 		fclose(fp);
 	#if 1 //update System_Top.bit
 		HBExecShell("mv -f /home/root/System_Top.bit /home/root/System_Top.bit_save");
@@ -441,14 +557,27 @@ void UdpFunc::run()
 				mPackCount = 0;
 				memset(pUpdatedata, 0xff, UPDATE_DATA_BUF_SIZE);
 				pTail = pUpdatedata;
-				if (mUpPackNumFlag == 1) {
-					mUpPackNumFlag = 0;
-				}
+			//flag	
+				mUpPackNumFlag = 0;
+				mUpSuccess = 0;	
 			}	
-		//update firmware
+		//Update FPGA File
 			if (*(m_pRecvCmd) == RECV_TYPE_Firmware_Update) {
-				if ( 0 == UpdateFirmware(recvbuf)) {
+				if ( 0 == Update_SaveFile(recvbuf)) {
 					UploadResponseCmd(CMDD_PACKET_RETRANS);
+					if (1 == mUpSuccess) {
+						Update_FpgaFile();
+					}
+				}		
+			}
+
+		//Update Linux File
+			if (*(m_pRecvCmd) == 0x66) {
+				if ( 0 == Update_SaveFile(recvbuf)) {
+					UploadResponseCmd(CMDD_PACKET_RETRANS);
+					if (1 == mUpSuccess) {
+						Update_LinuxFile();
+					}
 				}		
 			}
 
