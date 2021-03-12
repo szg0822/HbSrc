@@ -98,19 +98,6 @@ void UdpFunc::CreateCmd(TCmdID cmdID, UCHAR * pStatusCode)
 int UdpFunc::UploadParameterData(TCmdID cmdID)
 {
 	memset(pSendBuf, 0x00, PACKET_MAX_SIZE + 1);
-#if 0
-	for(int i=0; i<1024; i++) {
-		printf("0x%2x\t", p_bram_parameter[i]);
-		if(i % 10 == 0)
-			printf("\n");
-	}
-#endif
-	// printf("\nFPGAbuf:\n");
-	// for(int i=310; i<=330; i++) {
-		// printf("0x%2x\t", p_bram_parameter[i]);
-		// if(i % 10 == 0)
-			// printf("\n");
-	// }
 	CreateCmd(cmdID, NULL);
 	memcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], p_bram_parameter, TMP_BUFFER_SIZE);
 
@@ -147,39 +134,10 @@ int UdpFunc::UploadImageData(TCmdID cmdID, UINT offset, UINT SV, UINT PanelSize)
 
 	if ((PanelSize <= 0) || (PanelSize > 8))
 		PanelSize = 1;
-#if 1
+
 	UINT ImageLenBuf[16] = {3072 * 3072, 2560 * 3072, 1280 * 1024, 2048 * 2048, 2816 * 3584, 2048 * 1792, 4302 * 4302, 3072 * 3840};
 	ImageLen = ImageLenBuf[PanelSize - 1];
 
-#else
-//PannelSize选择
-	switch(PanelSize) {
-		case 1: 
-			ImageLen = 3072 * 3072;
-			break;
-		case 2: 
-			ImageLen = 2560 * 3072;
-			break;
-		case 3: 
-			ImageLen = 1280 * 1024;
-			break;
-		case 4: 
-			ImageLen = 2048 * 2048;
-			break;
-		case 5: 
-			ImageLen = 2816 * 3584;
-			break;
-		case 6: 
-			ImageLen = 2048 * 1792;
-			break;
-		case 7: 
-			ImageLen = 4302 * 4302;
-			break;
-		case 8: 
-			ImageLen = 3072 * 3840;
-			break;		
-	}
-#endif
 //给丢包使用校正模式
 	mOffset = offset;	
 //给丢包使用图像像素
