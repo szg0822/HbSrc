@@ -22,8 +22,8 @@
 #define BuffSize 1024
 #define TIMEOUT 2       //超时等待2秒
 
-static char const *szdstIp = "192.168.0.20";    //目标主机IP
-static char const *szsrcIp = "192.168.0.21";    //本机IP
+static char const *szdstIp = "192.168.10.20";    //目标主机IP
+static char const *szsrcIp = "192.168.10.21";    //本机IP
 
 // static UCHAR *pSendBuf;
 // static UCHAR *pSaveRam;
@@ -203,7 +203,7 @@ int UdpFunc::UploadImageData(TCmdID cmdID, UINT offset, UINT SV, UINT PanelSize)
 		}
 		packageNo++;
 		pImage += TMP_BUFFER_SIZE;
-		usleep(20); //降低发送速度
+		usleep(5); //降低发送速度
 		//printf("packageNo=%d,ImageLen/2=%d\n", packageNo, ImageLen / 512);
 	}
 	LogDebug("[%s:%s %u]  UploadImageData success! \n", __FILE__, __func__, __LINE__);
@@ -248,10 +248,11 @@ int UdpFunc::UploadStateCmd(TCmdID cmdID, UCHAR chStatusCode)
 void UdpFunc::PacketRetransmission(UCHAR *recvbuf)
 {
 	UCHAR *TmpBram;
-	UINT PackNum = 0;		//丢包的数量
-	USHORT PackId = 0;		//包号
-	ULONG len = 0;
+	USHORT PackNum = 0;		//丢包的数量
+	USHORT PackId;		//包号
+	USHORT len = 0;
 	LogDebug("[%s:%s %u]  Start Packet Retransmission \n", __FILE__, __func__, __LINE__);
+	UINT count = 0;
 
 	if (recvbuf == NULL) {
 		LogError("[%s:%s %u]  recvbuf NULL \n", __FILE__, __func__, __LINE__);
@@ -267,34 +268,45 @@ void UdpFunc::PacketRetransmission(UCHAR *recvbuf)
 		TmpBram = p_bramA_image;
 
 	//丢包的数量
-	PackNum = (recvbuf[17] << 8) | recvbuf[18];
-	//包号
-	PackId = 0;
-	printf("==packnum=%d\n", PackNum);
-	for(int j = 0; j < PackNum; j++)
-	{
-		printf("buf[%d]=0x%x\t", j, recvbuf[19 + j]);
-		if(j % 6 == 0) {
-			printf("\n");
+	PackNum = ((recvbuf[HB_ID8] & 0xff) | ((recvbuf[HB_ID9] << 8) & 0xff));
+
+	if ((PackNum > 512) || (PackNum <= 0)) {
+		LogError("[%s:%s %u]  failed：PackNum=%d \n", __FILE__, __func__, __LINE__, PackNum);
+		return;
+	}
+
+	while(1) {	
+		if (count == PackNum * 2) {
+			if (PackId !=  (mImageLen / 512 - 1) ) {
+				LogError("[%s:%s %u]  Package tail failed! PackId=%d \n", __FILE__, __func__, __LINE__, PackId);
+			}
+			break;
 		}
 
-	}
-	for (int i = 0; i < PackNum; i++) {
-		PackId = recvbuf[19 + i];
+		PackId = ((recvbuf[19 + count] << 8) | recvbuf[19 + count + 1]);				//两个字节组成一个包号
+		if (PackId > (mImageLen / 512 - 1)) {
+			LogError("[%s:%s %u]  Package failed! PackId=%d \n", __FILE__, __func__, __LINE__, PackId);
+			break;
+		}
+		
 		len = PackId * TMP_BUFFER_SIZE;
 		TmpBram += len;
-		CreateCmd(CMDU_UPLOAD_IMAGE_SINGLE_SHOT,  NULL);
+
+		CreateCmd(CMDU_UPLOAD_IMAGE_RETRANS,  NULL);		//修改丢包重传是0x5B
 		pSendBuf[HB_ID7] = (PackId ) & 0xff;
 		pSendBuf[HB_ID8] = (PackId >> 8) & 0xff;
 		pSendBuf[HB_ID9] = (PackId >> 16) & 0xff;
-		//printf("===PackId=%d==len=%ld\n", PackId, len);
+
 		memcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], TmpBram, TMP_BUFFER_SIZE);
-		//printf("===bram2\n");
+
 		if (0 != UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE)) {
 			LogError("[%s:%s %u]  UDP_SEND Failed! \n", __FILE__, __func__, __LINE__);
 		}
+		usleep(5); //降低发送速度
+
+		count += 2;		//一步2个字节
 	}
-	printf("22\n");
+
 	UploadStateCmd(CMDU_REPORT, FPD_STATUS_READY);
 	LogDebug("[%s:%s %u]  Packet Retransmission Success! Packet_num=%d \n", __FILE__, __func__, __LINE__, PackNum);	
 }
@@ -322,7 +334,7 @@ void UdpFunc::FrameRetransmission()
 		if (packageNo == (mImageLen / 512)) {
 			break;
 		}
-		CreateCmd(CMDU_UPLOAD_IMAGE_SINGLE_SHOT, NULL);
+		CreateCmd(CMDU_UPLOAD_IMAGE_RETRANS, NULL);
 		pSendBuf[HB_ID7] = (packageNo ) & 0xff;
 		pSendBuf[HB_ID8] = (packageNo >> 8) & 0xff;
 		pSendBuf[HB_ID9] = (packageNo >> 16) & 0xff;
@@ -332,7 +344,7 @@ void UdpFunc::FrameRetransmission()
 		}
 		packageNo++;
 		TmpBram += TMP_BUFFER_SIZE;
-		usleep(20); //降低发送速度
+		usleep(5); //降低发送速度
 	}
 	UploadStateCmd(CMDU_REPORT, FPD_STATUS_READY);
 	LogDebug("[%s:%s %u]  Frame Retransmission Success! Packet_num=%d \n", __FILE__, __func__, __LINE__, packageNo);
