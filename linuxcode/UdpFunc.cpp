@@ -268,7 +268,7 @@ void UdpFunc::PacketRetransmission(UCHAR *recvbuf)
 		TmpBram = p_bramA_image;
 
 	//丢包的数量
-	PackNum = ((recvbuf[HB_ID8] & 0xff) | ((recvbuf[HB_ID9] << 8) & 0xff));
+	PackNum = (recvbuf[HB_ID8] & 0xff) | ((recvbuf[HB_ID9] & 0xff) << 8);		//低高
 
 	if ((PackNum > 512) || (PackNum <= 0)) {
 		LogError("[%s:%s %u]  failed：PackNum=%d \n", __FILE__, __func__, __LINE__, PackNum);
@@ -283,7 +283,7 @@ void UdpFunc::PacketRetransmission(UCHAR *recvbuf)
 			break;
 		}
 
-		PackId = ((recvbuf[19 + count] << 8) | recvbuf[19 + count + 1]);				//两个字节组成一个包号
+		PackId = ((recvbuf[19 + count] & 0xff) << 8) | (recvbuf[19 + count + 1] & 0xff);				//两个字节组成一个包号
 		if (PackId > (mImageLen / 512 - 1)) {
 			LogError("[%s:%s %u]  Package failed! PackId=%d \n", __FILE__, __func__, __LINE__, PackId);
 			break;
@@ -368,7 +368,7 @@ int HBExecShell(const char *shell)
 * 功能描述: 软件包下载后保存文件，如果失败，不会更新软件
 * 参数说明:	recvbuf：接收的每包数据
 * 返 回 值：0：成功；    
-* 备    注:
+* 备    注: 接收的包的数量采用大端
 *********************************************************/
 int UdpFunc::Update_SaveFile(UCHAR *recvbuf)
 {
@@ -389,7 +389,8 @@ int UdpFunc::Update_SaveFile(UCHAR *recvbuf)
 	if (mUpPackNumFlag == 0) {
 		pRecvCmd = (UCHAR *)(recvbuf + OFFSET_PACKAGE_CMD);
 		LogDebug("[%s:%s %u]  Recv XDStatic Cmd=0x%.2x \n", __FILE__, __func__, __LINE__,  *(pRecvCmd));
-		PackNum = (recvbuf[HB_ID8] << 8) | recvbuf[HB_ID9];
+		PackNum = ((recvbuf[HB_ID8] & 0xff) << 8) | (recvbuf[HB_ID9] & 0xff);		//大端，高低
+
 		LogDebug("[%s:%s %u]  Total_PackNum = %d\n", __FILE__, __func__, __LINE__, PackNum);
 		mUpPackNumFlag = 1;
 	}
@@ -416,7 +417,7 @@ int UdpFunc::Update_SaveFile(UCHAR *recvbuf)
 		pTail = pUpdatedata;
 		if((fp=fopen("/home/root/UpFile","wt+"))==NULL)
 		{
-			LogError("[%s:%s %u]  open </home/root/UpFire.bit> file error \n", __FILE__, __func__, __LINE__);
+			LogError("[%s:%s %u]  open </home/root/UpFile> file error \n", __FILE__, __func__, __LINE__);
 			return -1;
 		}
 		fwrite(pUpdatedata, sizeof(UCHAR), (PackNum - 1) * TMP_BUFFER_SIZE + 270, fp);			
@@ -454,78 +455,6 @@ void UdpFunc::Update_LinuxFile()
 	}
 }
 
-int UdpFunc::UpdateFirmware(UCHAR *recvbuf)
-{
-	static UINT PackNum;
-	FILE *fp;
-	UCHAR *pRecvCmd;
-	
-	if (NULL == recvbuf) {
-		LogError("[%s:%s %u]  recvbuf NULL \n", __FILE__, __func__, __LINE__);
-		return -1;
-	}
-	if (NULL == pTail) {
-		LogError("[%s:%s %u]  pTail NULL \n", __FILE__, __func__, __LINE__);
-		return -2;
-	}
-	//ID8+ID9=包的数量
-	//每次升级只进来一次
-	if (mUpPackNumFlag == 0) {
-		pRecvCmd = (UCHAR *)(recvbuf + OFFSET_PACKAGE_CMD);
-		LogDebug("[%s:%s %u]  Recv XDStatic Cmd=0x%.2x \n", __FILE__, __func__, __LINE__,  *(pRecvCmd));
-		PackNum = (recvbuf[HB_ID8] << 8) | recvbuf[HB_ID9];
-		LogDebug("[%s:%s %u]  Total_PackNum = %d\n", __FILE__, __func__, __LINE__, PackNum);
-		mUpPackNumFlag = 1;
-	}
-	if (mPackCount == PackNum - 1) {
-		memcpy(pTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, 270);
-		pTail += 270;
-		// UCHAR tmpbuf[1024];
-		// memcpy(tmpbuf, recvbuf + OFFSET_PACKAGE_IMAGESLICE, TMP_BUFFER_SIZE);
-		// for(int i = 0; i < 1024; i++) {
-			// printf("buf[%d]=%x\t", i, tmpbuf[i]);
-			// if (i % 10 == 0)
-				// printf("\n");
-		// }
-	}	
-	else {
-		memcpy(pTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, TMP_BUFFER_SIZE);
-		pTail += TMP_BUFFER_SIZE;
-	}
-
-	mPackCount++;
-	
-	//printf("packnum=%d, count=%d\n", PackNum, mPackCount);
-	if (mPackCount == PackNum) {
-		pTail = pUpdatedata;
-		if((fp=fopen("/home/root/UpFire.bit","wt+"))==NULL)
-		{
-			LogError("[%s:%s %u]  open </home/root/UpFire.bit> file error \n", __FILE__, __func__, __LINE__);
-			return -1;
-		}
-		fwrite(pUpdatedata, sizeof(UCHAR), (PackNum - 1) * TMP_BUFFER_SIZE + 270, fp);			
-		fclose(fp);
-	#if 1 //update System_Top.bit
-		HBExecShell("mv -f /home/root/System_Top.bit /home/root/System_Top.bit_save");
-		int ret = HBExecShell("mv -f /home/root/UpFire.bit /home/root/System_Top.bit");
-		if (ret == 0) {
-			LogDebug("[%s:%s %u]  Recv_PackCount=%d\tUpdateFirmware </home/root/System_Top.bit> successfun!\n", __FILE__, __func__, __LINE__, mPackCount);
-			HBExecShell("reboot");
-		}else {
-			HBExecShell("mv -f /home/root/System_Top.bit_save /home/root/System_Top.bit");
-		}
-	#else //update demo
-		int ret = HBExecShell("kill $(pidof demo)");
-		if (0 == ret) {
-			HBExecShell("mv -f /home/root/UpFire.bit /home/root/demo");
-			LogDebug("[%s:%s %u]  UpdateFirmware </home/root/demo> successfun!\n", __FILE__, __func__, __LINE__);
-		}
-	#endif
-		
-		//LogDebug("[%s:%s %u]  Recv_PackCount = %d\n", __FILE__, __func__, __LINE__, mPackCount);
-	}
-	return 0;
-}
 
 void UdpFunc::run()
 {
