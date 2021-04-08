@@ -29,6 +29,10 @@
 #define OFFSET_PARAMETER_OFFSET	      			371
 
 //HB协议ID
+#define HB_ID3		12
+#define HB_ID4		13
+#define HB_ID5		14
+#define HB_ID6		15
 #define HB_ID7		16
 #define HB_ID8		17
 #define HB_ID9		18
@@ -166,6 +170,8 @@ public:
 	//更新嵌入式固件
 	void Update_LinuxFile();
 
+	//因固件不支持memcpy（会出现Bus error），自己封装函数
+	void * MyMemcpy(void *dest, const void *src, size_t count);
 
 	UCHAR *p_bram_state; 		//映射的状态数据地址
 	UCHAR *p_bram_parameter; 	//映射的参数数据地址

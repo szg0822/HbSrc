@@ -100,7 +100,7 @@ int UdpFunc::UploadParameterData(TCmdID cmdID)
 {
 	memset(pSendBuf, 0x00, PACKET_MAX_SIZE + 1);
 	CreateCmd(cmdID, NULL);
-	memcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], p_bram_parameter, TMP_BUFFER_SIZE);
+	MyMemcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], p_bram_parameter, TMP_BUFFER_SIZE);
 
 	if (0 != UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE)) {
 		LogError("[%s:%s %u]  UDP_SEND failed! \n", __FILE__, __func__, __LINE__);
@@ -195,7 +195,7 @@ int UdpFunc::UploadImageData(TCmdID cmdID, UINT offset, UINT SV, UINT PanelSize)
 		pSendBuf[HB_ID8] = (packageNo >> 8) & 0xff;
 		pSendBuf[HB_ID9] = (packageNo >> 16) & 0xff;
 
-		memcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], pImage, TMP_BUFFER_SIZE);
+		MyMemcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], pImage, TMP_BUFFER_SIZE);
 		
 		if (0 != UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE)) {
 			LogError("[%s:%s %u]=== UDP_SEND failed!", __FILE__, __func__, __LINE__);
@@ -297,7 +297,7 @@ void UdpFunc::PacketRetransmission(UCHAR *recvbuf)
 		pSendBuf[HB_ID8] = (PackId >> 8) & 0xff;
 		pSendBuf[HB_ID9] = (PackId >> 16) & 0xff;
 
-		memcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], TmpBram, TMP_BUFFER_SIZE);
+		MyMemcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], TmpBram, TMP_BUFFER_SIZE);
 
 		if (0 != UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE)) {
 			LogError("[%s:%s %u]  UDP_SEND Failed! \n", __FILE__, __func__, __LINE__);
@@ -338,7 +338,7 @@ void UdpFunc::FrameRetransmission()
 		pSendBuf[HB_ID7] = (packageNo ) & 0xff;
 		pSendBuf[HB_ID8] = (packageNo >> 8) & 0xff;
 		pSendBuf[HB_ID9] = (packageNo >> 16) & 0xff;
-		memcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], TmpBram, TMP_BUFFER_SIZE);
+		MyMemcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], TmpBram, TMP_BUFFER_SIZE);
 		if (0 != UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE)) {
 			LogError("[%s:%s %u]=== UDP_SEND failed!", __FILE__, __func__, __LINE__);
 		}
@@ -375,6 +375,7 @@ int UdpFunc::Update_SaveFile(UCHAR *recvbuf)
 	static UINT PackNum;
 	FILE *fp;
 	UCHAR *pRecvCmd;
+	UINT LastPackLen = 0;
 	
 	if (NULL == recvbuf) {
 		LogError("[%s:%s %u]  recvbuf NULL \n", __FILE__, __func__, __LINE__);
@@ -395,18 +396,12 @@ int UdpFunc::Update_SaveFile(UCHAR *recvbuf)
 		mUpPackNumFlag = 1;
 	}
 	if (mPackCount == PackNum - 1) {
-		memcpy(pTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, 270);
-		pTail += 270;
-		// UCHAR tmpbuf[1024];
-		// memcpy(tmpbuf, recvbuf + OFFSET_PACKAGE_IMAGESLICE, TMP_BUFFER_SIZE);
-		// for(int i = 0; i < 1024; i++) {
-			// printf("buf[%d]=%x\t", i, tmpbuf[i]);
-			// if (i % 10 == 0)
-				// printf("\n");
-		// }
+		LastPackLen = ((recvbuf[HB_ID6] & 0xff) << 8) | (recvbuf[HB_ID7] & 0xff);
+		MyMemcpy(pTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, LastPackLen);
+		pTail += LastPackLen;
 	}	
 	else {
-		memcpy(pTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, TMP_BUFFER_SIZE);
+		MyMemcpy(pTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, TMP_BUFFER_SIZE);
 		pTail += TMP_BUFFER_SIZE;
 	}
 
@@ -420,11 +415,12 @@ int UdpFunc::Update_SaveFile(UCHAR *recvbuf)
 			LogError("[%s:%s %u]  open </home/root/UpFile> file error \n", __FILE__, __func__, __LINE__);
 			return -1;
 		}
-		fwrite(pUpdatedata, sizeof(UCHAR), (PackNum - 1) * TMP_BUFFER_SIZE + 270, fp);			
+		fwrite(pUpdatedata, sizeof(UCHAR), (PackNum - 1) * TMP_BUFFER_SIZE + LastPackLen, fp);			
 		fclose(fp);
 		
 		LogDebug("[%s:%s %u]  save file[/home/root/UpFile] successful!\n", __FILE__, __func__, __LINE__);
 		mUpSuccess = 1;
+		mPackCount = 0;
 	}
 	return 0;
 }
@@ -455,6 +451,32 @@ void UdpFunc::Update_LinuxFile()
 	}
 }
 
+void *UdpFunc::MyMemcpy(void *dest, const void *src, size_t count)
+{
+	char *d;
+	const char *s;
+
+	if (dest == NULL || src == NULL) 
+        return NULL;
+
+	if ((dest > (src+count)) || (dest < src))
+	{
+		d = (char *)dest;
+		s = (char *)src;
+		while (count--)
+			*d++ = *s++;        
+	}
+	else /* overlap */
+	{
+		d = (char *)(dest + count - 1); /* offset of pointer is from 0 */
+		s = (char *)(src + count -1);
+		while (count --)
+			*d-- = *s--;
+	}
+
+	return dest;
+}
+
 
 void UdpFunc::run()
 {
@@ -467,8 +489,8 @@ void UdpFunc::run()
 	
 	LogDebug("[%s:%s %u]  UdpFunc RUN \n", __FILE__, __func__, __LINE__);
 
-	memcpy(remoteip,szdstIp,strlen(szdstIp));
-	memcpy(localip,szsrcIp,strlen(szsrcIp));
+	MyMemcpy(remoteip,szdstIp,strlen(szdstIp));
+	MyMemcpy(localip,szsrcIp,strlen(szsrcIp));
 	if (ERR_SUCCESS != UDP_CREATE()) { 
 		LogError("[%s:%s %u]  UDP Connect Failed! \n", __FILE__, __func__, __LINE__);
 		UDP_CLOSE();
@@ -485,7 +507,9 @@ void UdpFunc::run()
 		if (length == PC_SENDBUF_SIZE) {
 			p_bram_parameter = p_bram_tail + 0x1000;		//FPGA_ADDRESS+1000
 
-			memcpy(p_bram_parameter, recvbuf, PC_SENDBUF_SIZE + 3); //透传1049+3个0x00,共1052;
+			//因固件不支持memcpy（会出现Bus error），自己封装函数
+			//memcpy(p_bram_parameter, recvbuf, PC_SENDBUF_SIZE + 3); //透传1049+3个0x00,共1052;
+			MyMemcpy(p_bram_parameter, recvbuf, PC_SENDBUF_SIZE + 3);
 
 			m_pRecvCmd = (UCHAR *)(recvbuf + OFFSET_PACKAGE_CMD); //CMD
 			if (*(m_pRecvCmd) != RECV_TYPE_Firmware_Update) 

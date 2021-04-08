@@ -102,7 +102,7 @@ static void UdpSend()
 				m_offset = *(pBramParameter + OFFSET_PARAMETER_OFFSET); 					//取offset参数值
 
 			//Saturation Value(4byte)
-				memcpy(tmpSVBuf, (pBramParameter + OFFSET_PARAMETER_SATURATION_VALUE), 4);
+				udpfunc.MyMemcpy(tmpSVBuf, (pBramParameter + OFFSET_PARAMETER_SATURATION_VALUE), 4);
 				m_SaturationV = tmpSVBuf[0] << 24 | tmpSVBuf[1] << 16 | tmpSVBuf[2] << 8 | tmpSVBuf[3];
 
 			//Panel_Size(平板像素大小的选择)

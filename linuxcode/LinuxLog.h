@@ -19,7 +19,7 @@
 //LogDebug("[%s:%s %u]  deguglog \n", __FILE__, __func__, __LINE__);
 //LogError("[%s:%s %u]  errorlog \n", __FILE__, __func__, __LINE__);
 
-#define PrintLog
+//#define PrintLog
 #ifdef  PrintLog
     #define LogDebug (printf("[Debug]  "), printf )
     #define LogError (printf("[===Error]  "), printf)

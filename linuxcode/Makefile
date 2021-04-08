@@ -15,11 +15,11 @@ INCLUDES = -I/usr/local/include
 LIBDIRS = -L/usr/local/lib
 endif
 
-LIBS = -l LinuxLog
+#LIBS = -l LinuxLog
 #LIBS = -lopencv_core -lopencv_imgproc -lopencv_highgui 
-OPT = -O3 -g  -pthread -std=c++11 -g 		
+OPT = -O3 -g  -pthread -std=c++11 -g -Wall		
 #-Wall
-OBJS= main.o MyUDP.o UdpFunc.o thread.o 
+OBJS= main.o MyUDP.o UdpFunc.o thread.o LinuxLog.o
 all:demo
 		echo all:make complete
 %.o:%.cpp
@@ -27,7 +27,7 @@ all:demo
 %.o:%.c
 		$(GCC) -c $(INCLUDES) $+ 
 demo:$(OBJS)
-		$(CC) $(LIBDIRS)  -o $@ $+ $(OPT) $(LIBS)
+		$(CC) $(LIBDIRS)  -o $@ $+ $(OPT) 
 
 .PHONY: all clean
 clean:
