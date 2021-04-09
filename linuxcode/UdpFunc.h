@@ -27,6 +27,8 @@
 #define OFFSET_PARAMETER_PANELSIZE      		2
 #define OFFSET_PARAMETER_SATURATION_VALUE       311
 #define OFFSET_PARAMETER_OFFSET	      			371
+#define OFFSET_PARAMETER_GAIN	      			372
+#define OFFSET_PARAMETER_DEFECT	      			373
 
 //HB协议ID
 #define HB_ID3		12
@@ -63,13 +65,14 @@
 #define BRAM_SIZE_STATE 		4		//状态数据长度
 #define TMP_BUFFER_SIZE 		1024	//组包的数据长度（19+1024+‘\0’+6=1050）
 #define UPDATE_DATA_BUF_SIZE	1024 * 1024 * 10  //更新软件的数据存放大小
-
+#define Gain_Buf_SIZE			4302 * 4302 * 2
 
 #define RECV_TYPE_PACKET_RETRANS        0x06     //数据包重传
 #define RECV_TYPE_FRAME_RETRANS         0x07     //整个数据帧重传
 #define RECV_TYPE_ERASE_FLASH         	0x4F     //升级软件时擦除软件的命令
 #define RECV_TYPE_Firmware_Update       0x50     //下发的软件升级的数据包
-#define RECV_TYPE_DOWNLOAD_GAIN       	0x2F     //下发Gain模板的数据包
+#define RECV_TYPE_DOWNLOAD_GAIN       	0x2F     //下载Gain校正模板
+#define RECV_TYPE_DOWNLOAD_DEFECT       0x66     //下载Defect校正模板
 
 //上位机下发的命令
 typedef enum tagTCmdID {
@@ -96,6 +99,19 @@ typedef enum tagTCmdID {
 	CMDU_UPLOAD_IMAGE_RETRANS = 0x5B
 }TCmdID;
 
+//获取的FPGA参数配置
+typedef struct ParameterInfo
+{
+	UINT offset;				
+	UINT gain;
+	UINT defect;
+	UINT SaturationV;			//饱和度
+	UINT PanelSize;				//平板像素大小的选择
+}parameter_t;
+
+
+#define FILE_NAME_GAIN 			"/home/root/Gain.raw"
+#define FILE_NAME_DEFECT 		"/home/root/Defect.raw"
 
 class UdpFunc:public Thread,public MyUDP
 {
@@ -145,7 +161,7 @@ public:
 	* 返 回 值：0：成功；-1：失败	
 	* 备    注:
 	*********************************************************/
-	int UploadImageData(TCmdID cmdID, UINT offset, UINT SV, UINT PanelSize);
+	int UploadImageData(TCmdID cmdID, parameter_t ParaInfo);
 
 
 	/*********************************************************
@@ -170,8 +186,21 @@ public:
 	//更新嵌入式固件
 	void Update_LinuxFile();
 
+
 	//因固件不支持memcpy（会出现Bus error），自己封装函数
 	void * MyMemcpy(void *dest, const void *src, size_t count);
+
+/*********************************************************
+* 函 数 名: DownloadCurrencyTemplate
+* 功能描述: 下载通用校正模板
+* 参数说明:	recvbuf：接收的每包校正模板数据
+		   TemplateValue：1，Gain模板；2，Defect模板
+* 返 回 值：0：成功；    
+* 备    注: 
+*********************************************************/
+	int DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue);
+
+
 
 	UCHAR *p_bram_state; 		//映射的状态数据地址
 	UCHAR *p_bram_parameter; 	//映射的参数数据地址

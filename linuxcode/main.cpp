@@ -34,8 +34,8 @@ using namespace std;
 #define BuffSize 1024
 
 
-char const *szdstIp = "192.168.0.20";
-char const *szsrcIp = "192.168.0.21";
+char const *szdstIp = "192.168.10.20";
+char const *szsrcIp = "192.168.10.21";
 UdpFunc udpfunc;//线程对象
 
 
@@ -50,24 +50,42 @@ static int pip_fd1[2], pip_fd2[2];
 static int fd1_pip, fd2_pip;
 
 //udp准备
-static int UdpConnect()
+static int UdpConnect(const char *pDstIp)
 {	
 	//udpfunc.remotePort = 1234;
 	//udpfunc.loacalPort = 1235;
-	#if 1
-	memcpy(udpfunc.remoteip,szdstIp,strlen(szdstIp));
+	if (NULL == pDstIp) {
+		LogError("[%s:%s %u]  pDstIp NULL \n", __FILE__, __func__, __LINE__);
+		return -1;
+	}
+	//printf("dstip=%s, len=%d\n", pDstIp, strlen(pDstIp));
+	memcpy(udpfunc.remoteip,pDstIp,strlen(pDstIp));
 	memcpy(udpfunc.localip,szsrcIp,strlen(szsrcIp));
 	if (ERR_SUCCESS != udpfunc.UDP_CREATE()) { 
-		LogError("[%s:%s %u]  UDP_CREATE failed! \n", __FILE__, __func__, __LINE__);
+		LogError("[%s:%s %u]  UDP Connect Failed! \n", __FILE__, __func__, __LINE__);
+		udpfunc.UDP_CLOSE();
+		return -1;
 	}
 	else{
-		LogDebug("[%s:%s %u]  Create udp server ok \n", __FILE__, __func__, __LINE__);
+		LogDebug("[%s:%s %u]  UDP Connect Success! \n", __FILE__, __func__, __LINE__);
 	}
-	#else
+	return 0;
+}        
 
-	udpfunc.Open("192.168.0.21","192.168.0.20");
-	#endif 
-	
+//udp准备
+static int UdpConnect()
+{	
+	memcpy(udpfunc.remoteip,szdstIp,strlen(szdstIp));
+	memcpy(udpfunc.localip,szsrcIp,strlen(szsrcIp));
+
+	if (ERR_SUCCESS != udpfunc.UDP_CREATE()) { 
+		LogError("[%s:%s %u]  UDP Connect Failed! \n", __FILE__, __func__, __LINE__);
+		udpfunc.UDP_CLOSE();
+		return -1;
+	}
+	else{
+		LogDebug("[%s:%s %u]  UDP Connect Success! \n", __FILE__, __func__, __LINE__);
+	}
 	return 0;
 }        
 
@@ -82,31 +100,37 @@ static void UdpSend()
 {
 	LogDebug("[%s:%s %u]  Wait Fpga .... \n", __FILE__, __func__, __LINE__);
 
-	UINT m_offset = 0;				//offset参数值, 0:不做offset；1：软件offset；2:固件offset
-	UINT m_SaturationV = 0;					//固件offset校正算法用到	
 	UCHAR tmpSVBuf[5] = {0};
-	UINT m_PanelSize = 0;
+	parameter_t ParaInfo;
+	
+	memset(&ParaInfo, 0, sizeof(parameter_t));
+
 	while(1)
 	{
-		usleep(50 * 1000); //20ms
-		//usleep(100); //20ms
-		
-			//printf("pBramState[0]=0x%x\n", pBramState[0]);
+		usleep(50 * 1000); //50ms
+
 		switch (pBramState[0]) {
 			case 3: {
 				LogDebug("[%s:%s %u]  Recv Fpga 0x03, Parameter \n", __FILE__, __func__, __LINE__);
 				memset(pBramState, 0xff, BRAM_SIZE_STATE);
 				if (0 == udpfunc.UploadParameterData(CMDU_SYSPARA_REPORT))
 					LogDebug("[%s:%s %u]  UploadParameterData success!  \n", __FILE__, __func__, __LINE__);
-			//offset(1byte)		
-				m_offset = *(pBramParameter + OFFSET_PARAMETER_OFFSET); 					//取offset参数值
+
+			//offset(1byte)		offset参数值, 0:不做offset；1：软件offset；2:固件offset
+				ParaInfo.offset = *(pBramParameter + OFFSET_PARAMETER_OFFSET); 					//取offset参数值
+			
+			//gain(1byte)		
+				ParaInfo.gain = *(pBramParameter + OFFSET_PARAMETER_GAIN); 					//取gain参数值
+			
+			//defect(1byte)		
+				ParaInfo.defect = *(pBramParameter + OFFSET_PARAMETER_DEFECT); 					//取defect参数值
 
 			//Saturation Value(4byte)
 				udpfunc.MyMemcpy(tmpSVBuf, (pBramParameter + OFFSET_PARAMETER_SATURATION_VALUE), 4);
-				m_SaturationV = tmpSVBuf[0] << 24 | tmpSVBuf[1] << 16 | tmpSVBuf[2] << 8 | tmpSVBuf[3];
+				ParaInfo.SaturationV = tmpSVBuf[0] << 24 | tmpSVBuf[1] << 16 | tmpSVBuf[2] << 8 | tmpSVBuf[3];
 
 			//Panel_Size(平板像素大小的选择)
-				m_PanelSize = *(pBramParameter + OFFSET_PARAMETER_PANELSIZE);
+				ParaInfo.PanelSize = *(pBramParameter + OFFSET_PARAMETER_PANELSIZE);
 
 				break;
 			}
@@ -117,7 +141,7 @@ static void UdpSend()
 			}
 			case 5: {
 				memset(pBramState, 0xff, BRAM_SIZE_STATE);
-				LogDebug("[%s:%s %u]  Recv Fpga 0x05, SINGLE_SHORT, m_offset=%d, m_PanelSize=%d \n", __FILE__, __func__, __LINE__, m_offset, m_PanelSize);
+				LogDebug("[%s:%s %u]  Recv Fpga 0x05, SINGLE_SHORT, m_offset=%d, m_PanelSize=%d \n", __FILE__, __func__, __LINE__, ParaInfo.offset, ParaInfo.PanelSize);
 				//UCHAR readbuf[2] = {0};
 				//UCHAR writebuf[2] = {0};
 			//从管道里读取cmd
@@ -125,7 +149,7 @@ static void UdpSend()
 					// LogError("[%s:%s %u]  Read Pip Faild, buf=0x%x \n", __FILE__, __func__, __LINE__, readbuf[0]);
 					// break;
 				// }
-				if (0 == udpfunc.UploadImageData(CMDU_UPLOAD_IMAGE_SINGLE_SHOT, m_offset, m_SaturationV, m_PanelSize)) {
+				if (0 == udpfunc.UploadImageData(CMDU_UPLOAD_IMAGE_SINGLE_SHOT, ParaInfo)) {
 					udpfunc.UploadStateCmd(CMDU_REPORT, FPD_STATUS_READY);
 				}
 				break;
@@ -162,6 +186,22 @@ int main(int argc, char* argv[])
 //日志初始化
 	InitLinuxLog();
 	LogDebug("[%s:%s %u]  ************[[[START RUN LINUX]]]*********** \n", __FILE__, __func__, __LINE__);
+
+//udp连接
+#if 0 
+	//远程ip可能会发生变化
+	if (2 != argc) {
+		LogError("[%s:%s %u]  run failed! <demo \"DstIp\"> \n", __FILE__, __func__, __LINE__);
+		return -1;
+	}
+	if (-1 == UdpConnect((const char *)argv[1])) {
+		return -1;
+	}
+#else
+	if (-1 == UdpConnect()) {
+		return -1;
+	}
+#endif 
 
 //将文件映射到内存	
 	if ((fd_bram = open("/dev/mem", O_RDWR | O_SYNC)) != -1) {

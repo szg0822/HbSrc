@@ -22,8 +22,8 @@
 #define BuffSize 1024
 #define TIMEOUT 2       //超时等待2秒
 
-static char const *szdstIp = "192.168.10.20";    //目标主机IP
-static char const *szsrcIp = "192.168.10.21";    //本机IP
+//static char const *szdstIp = "192.168.10.20";    //目标主机IP
+//static char const *szsrcIp = "192.168.10.21";    //本机IP
 
 // static UCHAR *pSendBuf;
 // static UCHAR *pSaveRam;
@@ -31,6 +31,10 @@ static char const *szsrcIp = "192.168.10.21";    //本机IP
 static UCHAR *pTail;				//指向更新固件的保存数据地址
 static UINT mUpPackNumFlag = 0;		//update数据包的个数只需要获取一次就行，这里上个锁
 static UINT mUpSuccess = 0;			//update数据包成功的标志
+
+//校正模板
+static UCHAR *pTemplateBuf = NULL;			//Gain模板指针
+static UCHAR *pGainTail;			//指向下载模板的保存数据地址
 
 static UINT mOffset = 0;			//offset校正模式
 static UINT mImageLen = 0;			//图像像素
@@ -120,15 +124,34 @@ int UdpFunc::UploadParameterData(TCmdID cmdID)
 * 返 回 值：0：成功；-1：失败	
 * 备    注:
 *********************************************************/
-int UdpFunc::UploadImageData(TCmdID cmdID, UINT offset, UINT SV, UINT PanelSize)
+int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 {
 	UINT len = 0;
 	USHORT packageNo = 0;		//包号
 	UCHAR *pImage = NULL;
 	UINT ImageLen = 0;			//像素值，2个字节一个像素点
+	UINT offset = 0;
+	UINT gain = 0;
+	UINT defect = 0;
+	UINT PanelSize = 1;
+	UINT SV = 100;
+
+	USHORT * ipPtr;
+	FILE * fpFile;
+	long lSize,lCount;
+
+	UCHAR *pTmpGainBuf;
+	UCHAR *pTmpDefectBuf;
 
 	memset(pSaveRam, 0x00, BRAM_SIZE_IMAGE);
 
+	offset = ParaInfo.offset;
+	gain = ParaInfo.gain;
+	defect = ParaInfo.defect;
+	PanelSize = ParaInfo.PanelSize;
+	SV = ParaInfo.SaturationV;
+
+	printf("test:offset=%d, gain=%d, defect=%d, panelsize=%d, sv=%d\n", offset, gain, defect, PanelSize, SV);
 //安全考虑
 	if ((offset < 0) || (offset > 3)) 
 		offset = 0;
@@ -136,8 +159,11 @@ int UdpFunc::UploadImageData(TCmdID cmdID, UINT offset, UINT SV, UINT PanelSize)
 	if ((PanelSize <= 0) || (PanelSize > 8))
 		PanelSize = 1;
 
-	UINT ImageLenBuf[16] = {3072 * 3072, 2560 * 3072, 1280 * 1024, 2048 * 2048, 2816 * 3584, 2048 * 1792, 4302 * 4302, 3072 * 3840};
-	ImageLen = ImageLenBuf[PanelSize - 1];
+	//UINT ImageLenBuf[2 * 8] = {3072 * 3072, 2560 * 3072, 1280 * 1024, 2048 * 2048, 2816 * 3584, 2048 * 1792, 4302 * 4302, 3072 * 3840};
+	UINT ImageLenBuf[2 * 8] = {3072 , 3072, 2560 , 3072, 1280 , 1024, 2048 , 2048, 2816 , 3584, 2048 , 1792, 4302 , 4302, 3072 , 3840};
+	//公式：ImageLenBuf[2*(n-1)] * ImageLenBuf[2*(n-1) + 1]
+	//x * y
+	ImageLen = ImageLenBuf[2 * PanelSize - 2] * ImageLenBuf[2 * PanelSize - 1];
 
 //给丢包使用校正模式
 	mOffset = offset;	
@@ -149,7 +175,7 @@ int UdpFunc::UploadImageData(TCmdID cmdID, UINT offset, UINT SV, UINT PanelSize)
 	if (0 == offset) {
 		pImage = p_bramA_image;
 	}
-//固件校正
+//offset固件校正
 	if (2 == offset) {
 		//俩帧合为一帧
 		int j = 0;
@@ -181,7 +207,127 @@ int UdpFunc::UploadImageData(TCmdID cmdID, UINT offset, UINT SV, UINT PanelSize)
 		}
 		pSaveRam[ImageLen * 2] = '\0';
 		pImage = pSaveRam;
+
+	//Gain模板固件校正
+		if (2 == gain) {
+		//申请Gain校正后的地址
+			pTmpGainBuf = (UCHAR *)malloc(ImageLen * 2);
+			memset(pTmpGainBuf, 0, ImageLen * 2);
+
+		//拷贝Gain校正模板数据
+			fpFile = fopen(FILE_NAME_GAIN, "r");
+			if (NULL == fpFile) {
+				LogError("[%s:%s %u]  Open file<%s> failed! \n", __FILE__, __func__, __LINE__, FILE_NAME_GAIN);
+				return -1;
+			}
+			fseek(fpFile, 0L, SEEK_END);
+			lSize = ftell(fpFile);
+			lCount = lSize / sizeof(USHORT);
+			ipPtr = (USHORT*)malloc(lSize);
+			memset(ipPtr, 0, lSize);
+			fread(ipPtr,sizeof(USHORT),lCount,fpFile);
+			fclose(fpFile);
+
+			USHORT TMP_Gain = 0;
+			int j = 0;
+			for (int i = 0; i < ImageLen; i++) {
+				TMP_Gain = (pSaveRam[i] / ipPtr[i]) * 1024;
+				if (TMP_Gain >= SV) {
+					TMP_Gain = SV;
+				}
+				pTmpGainBuf[j] = TMP_Gain & 0xff;
+				pTmpGainBuf[j + 1] = (TMP_Gain >> 8) & 0xff;
+				j += 2;
+			}
+			free(ipPtr);
+			ipPtr = NULL;
+
+			pTmpGainBuf[ImageLen * 2] = '\0';
+			pImage = pTmpGainBuf;
+
+
+		//Defect模板固件校正
+			if (2 == defect) {
+				//ImageLenBuf[2 * PanelSize - 2] * ImageLenBuf[2 * PanelSize - 1];
+				UINT TmpLenX = ImageLenBuf[2 * PanelSize - 2];
+				UINT TmpLenY = ImageLenBuf[2 * PanelSize - 1];
+
+				USHORT pTGain[TmpLenX][TmpLenY] = {0};
+				memcpy(&pTGain, (USHORT *)pTmpGainBuf, ImageLen);
+				
+				
+
+				typedef struct defect {
+					unsigned x:12;
+					unsigned y:12;
+					unsigned de:8;
+				}defect_t;
+
+				defect_t * Pdefect;
+				UINT iTmp[8];
+				UINT sum = 0;
+
+				//拷贝Gain校正模板数据
+				fpFile = fopen(FILE_NAME_DEFECT, "r");
+				if (NULL == fpFile) {
+					LogError("[%s:%s %u]  Open file<%s> failed! \n", __FILE__, __func__, __LINE__, FILE_NAME_DEFECT);
+					return -1;
+				}
+				fseek(fpFile, 0L, SEEK_END);
+				lSize = ftell(fpFile);
+				lCount = lSize / sizeof(defect_t);
+				Pdefect = (defect_t*)malloc(lSize);
+				memset(Pdefect, 0, lSize);
+				fread(Pdefect, sizeof(defect_t), lCount, fpFile);
+				fclose(fpFile);
+
+				for(int i = 0; i < lCount; i++) {
+					int count = 0;
+					int TmpJ[8];
+					for(int j = 0; j < 8; j++) {
+						iTmp[j] = ((Pdefect[i].de >> j) & 1);
+						printf("tmp[%d]=%d", j , iTmp[j]);
+						
+						if (1 == iTmp[j]) {
+							count++;	
+							if (0 == j)
+								sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y - 1];	
+							else if (1 == j)
+								sum += pTGain[Pdefect[i].x][Pdefect[i].y - 1];
+							else if (2 == j)
+								sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y - 1];
+							else if (3 == j)
+								sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y];
+							else if (4 == j)
+								sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y];
+							else if (5 == j)
+								sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y + 1];
+							else if (6 == j)
+								sum += pTGain[Pdefect[i].x][Pdefect[i].y + 1];
+							else if (7 == j)
+								sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y + 1];
+						}
+					}
+
+					pTGain[Pdefect[i].x][Pdefect[i].y] = sum / count;	
+				}
+
+				//申请Defect校正后的地址
+				pTmpDefectBuf = (UCHAR *)malloc(ImageLen * 2);
+				memset(pTmpDefectBuf, 0, ImageLen * 2);
+				memcpy(pTmpDefectBuf, (UCHAR *)pTGain, ImageLen * 2);
+
+				pTmpDefectBuf[ImageLen * 2] = '\0';
+				pImage = pTmpDefectBuf;
+
+				free(Pdefect);
+				Pdefect = NULL;
+			}
+
+			
+		}
 	}
+
 	
 	while (1)
 	{	
@@ -207,6 +353,17 @@ int UdpFunc::UploadImageData(TCmdID cmdID, UINT offset, UINT SV, UINT PanelSize)
 		//printf("packageNo=%d,ImageLen/2=%d\n", packageNo, ImageLen / 512);
 	}
 	LogDebug("[%s:%s %u]  UploadImageData success! \n", __FILE__, __func__, __LINE__);
+
+	if (NULL != pTmpGainBuf) {
+		free(pTmpGainBuf);
+		pTmpGainBuf = NULL;
+	}
+
+	if (NULL != pTmpDefectBuf) {
+		free(pTmpDefectBuf);
+		pTmpDefectBuf = NULL;
+	}
+
 	return 0;
 }
 
@@ -477,6 +634,96 @@ void *UdpFunc::MyMemcpy(void *dest, const void *src, size_t count)
 	return dest;
 }
 
+/*********************************************************
+* 函 数 名: DownloadCurrencyTemplate
+* 功能描述: 下载通用校正模板
+* 参数说明:	recvbuf：接收的每包校正模板数据
+		   TemplateValue：1，Gain模板；2，Defect模板
+* 返 回 值：0：成功；    
+* 备    注: 
+*********************************************************/
+int UdpFunc::DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue)
+{
+	static UINT PackNum;
+	FILE *fp;
+	UCHAR *pRecvCmd;
+	UINT LastPackLen = 0;
+	
+	if (NULL == recvbuf) {
+		LogError("[%s:%s %u]  recvbuf NULL \n", __FILE__, __func__, __LINE__);
+		return -1;
+	}
+
+	//下载通用模板只进来一次
+	if (mUpPackNumFlag == 0) {
+		if (NULL != pTemplateBuf) {
+			free(pTemplateBuf);
+			pTemplateBuf = NULL;
+		}
+			
+		pTemplateBuf = (UCHAR *)malloc(Gain_Buf_SIZE);
+		if (NULL == pTemplateBuf) {
+			LogError("[%s:%s %u]  malloc pTemplateBuf NULL \n", __FILE__, __func__, __LINE__);
+			return -2;
+		}
+
+		memset(pTemplateBuf, 0, Gain_Buf_SIZE);
+		pGainTail = pTemplateBuf;
+		mPackCount = 0;
+		pRecvCmd = (UCHAR *)(recvbuf + OFFSET_PACKAGE_CMD);
+		LogDebug("[%s:%s %u]  Recv XDStatic Cmd=0x%.2x \n", __FILE__, __func__, __LINE__,  *(pRecvCmd));
+		PackNum = mImageLen / 512;
+
+		LogDebug("[%s:%s %u]  Total_PackNum = %d\n", __FILE__, __func__, __LINE__, PackNum);
+		mUpPackNumFlag = 1;
+	}
+
+	if (mPackCount == PackNum - 1) {
+		LastPackLen = ((recvbuf[HB_ID4] & 0xff) << 8) | (recvbuf[HB_ID5] & 0xff);
+		printf("end packlen=%d\n", LastPackLen);
+		memcpy(pGainTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, LastPackLen);
+		pGainTail += LastPackLen;
+	}	
+	else {
+		memcpy(pGainTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, TMP_BUFFER_SIZE);
+		pGainTail += TMP_BUFFER_SIZE;
+	}
+
+	mPackCount++;
+	
+	//printf("packnum=%d, count=%d\n", PackNum, mPackCount);
+	if (mPackCount == PackNum) {
+		pGainTail = pTemplateBuf;
+		if (1 == TemplateValue) {
+			if((fp=fopen("/home/root/Gain.raw","wt+"))==NULL)
+			{
+				LogError("[%s:%s %u]  open </home/root/Gain.raw> file error \n", __FILE__, __func__, __LINE__);
+				free(pTemplateBuf);
+				return -1;
+			}
+			fwrite(pTemplateBuf, sizeof(UCHAR), (PackNum - 1) * TMP_BUFFER_SIZE + LastPackLen, fp);			
+			fclose(fp);
+
+			LogDebug("[%s:%s %u]  save file[/home/root/Gain.raw] successful!\n", __FILE__, __func__, __LINE__);
+		}
+		else if (2 == TemplateValue) {
+			if((fp=fopen("/home/root/Defect.raw","wt+"))==NULL)
+			{
+				LogError("[%s:%s %u]  open </home/root/Defect.raw> file error \n", __FILE__, __func__, __LINE__);
+				free(pTemplateBuf);
+				return -1;
+			}
+			fwrite(pTemplateBuf, sizeof(UCHAR), (PackNum - 1) * TMP_BUFFER_SIZE + LastPackLen, fp);			
+			fclose(fp);
+			LogDebug("[%s:%s %u]  save file[/home/root/Defect.raw] successful!\n", __FILE__, __func__, __LINE__);
+		}
+
+		mPackCount = 0;
+		free(pTemplateBuf);
+	}
+	return 0;
+}
+
 
 void UdpFunc::run()
 {
@@ -486,11 +733,14 @@ void UdpFunc::run()
 	UCHAR *m_pRecvCmd;  //接收的CMD
 	UCHAR recvbuf[PC_SENDBUF_SIZE + 3] = { 0 };
 	int TmpPrint = 0;
+	FILE *fp;
 	
 	LogDebug("[%s:%s %u]  UdpFunc RUN \n", __FILE__, __func__, __LINE__);
 
-	MyMemcpy(remoteip,szdstIp,strlen(szdstIp));
-	MyMemcpy(localip,szsrcIp,strlen(szsrcIp));
+#if 0
+	memcpy(remoteip,szdstIp,strlen(szdstIp));
+	memcpy(localip,szsrcIp,strlen(szsrcIp));
+
 	if (ERR_SUCCESS != UDP_CREATE()) { 
 		LogError("[%s:%s %u]  UDP Connect Failed! \n", __FILE__, __func__, __LINE__);
 		UDP_CLOSE();
@@ -499,7 +749,7 @@ void UdpFunc::run()
 	else{
 		LogDebug("[%s:%s %u]  UDP Connect Success! \n", __FILE__, __func__, __LINE__);
 	}
-
+#endif
 	pTail = pUpdatedata;
 
 	while(1){
@@ -512,7 +762,7 @@ void UdpFunc::run()
 			MyMemcpy(p_bram_parameter, recvbuf, PC_SENDBUF_SIZE + 3);
 
 			m_pRecvCmd = (UCHAR *)(recvbuf + OFFSET_PACKAGE_CMD); //CMD
-			if (*(m_pRecvCmd) != RECV_TYPE_Firmware_Update) 
+			if ((*(m_pRecvCmd) != RECV_TYPE_Firmware_Update) || (*(m_pRecvCmd) != RECV_TYPE_DOWNLOAD_GAIN)) 
 				LogDebug("[%s:%s %u]  Recv XDStatic Cmd=0x%.2x \n", __FILE__, __func__, __LINE__,  *(m_pRecvCmd));
 
 		//擦除frame（每次update，都会先发一次0x4f；我这里只做回应）
@@ -561,7 +811,28 @@ void UdpFunc::run()
 			}
 
 			memset(recvbuf, 0x00, PC_SENDBUF_SIZE + 3);
+		
+		//下载Gain校正模板
+			if (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_GAIN) {
+				if((fp=fopen("/home/root/Gain.raw","wt+")) == NULL)
+				{
+					LogError("[%s:%s %u]  open </home/root/Gain.raw> file error \n", __FILE__, __func__, __LINE__);
+				}
+				fwrite(recvbuf, sizeof(UCHAR), PC_SENDBUF_SIZE, fp);			
+				fclose(fp);
+				LogDebug("[%s:%s %u]  Download </home/root/Gain.raw> Successful! \n", __FILE__, __func__, __LINE__);
+			}
 
+		//下载Defect校正模板
+			if (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_DEFECT) {
+				if((fp=fopen("/home/root/Defect.raw","wt+")) == NULL)
+				{
+					LogError("[%s:%s %u]  open </home/root/Defect.raw> file error \n", __FILE__, __func__, __LINE__);
+				}
+				fwrite(recvbuf, sizeof(UCHAR), PC_SENDBUF_SIZE, fp);			
+				fclose(fp);
+				LogDebug("[%s:%s %u]  Download </home/root/Defect.raw> Successful! \n", __FILE__, __func__, __LINE__);
+			}
 		}
 	}
                           
