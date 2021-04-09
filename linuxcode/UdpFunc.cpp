@@ -25,15 +25,16 @@
 //static char const *szdstIp = "192.168.10.20";    //目标主机IP
 //static char const *szsrcIp = "192.168.10.21";    //本机IP
 
-// static UCHAR *pSendBuf;
-// static UCHAR *pSaveRam;
-//static UCHAR *pUpdatedata; 		//更新固件的保存数据地址
+static UCHAR *pSendBuf;				//组包后临时存放的地址
+//update
+static UCHAR *pUpdatedata; 			//更新固件的保存数据地址
 static UCHAR *pTail;				//指向更新固件的保存数据地址
 static UINT mUpPackNumFlag = 0;		//update数据包的个数只需要获取一次就行，这里上个锁
 static UINT mUpSuccess = 0;			//update数据包成功的标志
 
 //校正模板
-static UCHAR *pTemplateBuf = NULL;			//Gain模板指针
+static UCHAR *pSaveRam;				//在offset固件校正时，bram C保存区缓存
+static UCHAR *pTemplateBuf = NULL;	//Gain模板指针
 static UCHAR *pGainTail;			//指向下载模板的保存数据地址
 
 static UINT mOffset = 0;			//offset校正模式
@@ -578,6 +579,9 @@ int UdpFunc::Update_SaveFile(UCHAR *recvbuf)
 		LogDebug("[%s:%s %u]  save file[/home/root/UpFile] successful!\n", __FILE__, __func__, __LINE__);
 		mUpSuccess = 1;
 		mPackCount = 0;
+
+		free(pUpdatedata);
+		pUpdatedata = NULL;
 	}
 	return 0;
 }
@@ -695,7 +699,7 @@ int UdpFunc::DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue)
 	if (mPackCount == PackNum) {
 		pGainTail = pTemplateBuf;
 		if (1 == TemplateValue) {
-			if((fp=fopen("/home/root/Gain.raw","wt+"))==NULL)
+			if((fp=fopen(FILE_NAME_GAIN,"wt+"))==NULL)
 			{
 				LogError("[%s:%s %u]  open </home/root/Gain.raw> file error \n", __FILE__, __func__, __LINE__);
 				free(pTemplateBuf);
@@ -707,7 +711,7 @@ int UdpFunc::DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue)
 			LogDebug("[%s:%s %u]  save file[/home/root/Gain.raw] successful!\n", __FILE__, __func__, __LINE__);
 		}
 		else if (2 == TemplateValue) {
-			if((fp=fopen("/home/root/Defect.raw","wt+"))==NULL)
+			if((fp=fopen(FILE_NAME_DEFECT,"wt+"))==NULL)
 			{
 				LogError("[%s:%s %u]  open </home/root/Defect.raw> file error \n", __FILE__, __func__, __LINE__);
 				free(pTemplateBuf);
@@ -736,21 +740,14 @@ void UdpFunc::run()
 	FILE *fp;
 	
 	LogDebug("[%s:%s %u]  UdpFunc RUN \n", __FILE__, __func__, __LINE__);
+	memset(recvbuf, 0x00, PC_SENDBUF_SIZE + 3);
 
-#if 0
-	memcpy(remoteip,szdstIp,strlen(szdstIp));
-	memcpy(localip,szsrcIp,strlen(szsrcIp));
+	//组包后临时存放的地址
+	pSendBuf= (UCHAR *)malloc(PACKET_MAX_SIZE + 1);
 
-	if (ERR_SUCCESS != UDP_CREATE()) { 
-		LogError("[%s:%s %u]  UDP Connect Failed! \n", __FILE__, __func__, __LINE__);
-		UDP_CLOSE();
-		return;
-	}
-	else{
-		LogDebug("[%s:%s %u]  UDP Connect Success! \n", __FILE__, __func__, __LINE__);
-	}
-#endif
-	pTail = pUpdatedata;
+	pSaveRam = (UCHAR *)malloc(BRAM_SIZE_IMAGE); //在offset固件校正时，bram C保存区缓存
+	memset(pSaveRam, 0x00, BRAM_SIZE_IMAGE);
+
 
 	while(1){
 		length = UDP_RECV((UCHAR *)recvbuf, PACKET_MAX_SIZE);
@@ -770,6 +767,8 @@ void UdpFunc::run()
 				UploadResponseCmd(CMDD_FRAME_RETRANS);
 				//上一次update失败后，下一次需要恢复参数数据
 				mPackCount = 0;
+
+				pUpdatedata = (UCHAR *)malloc(UPDATE_DATA_BUF_SIZE);
 				memset(pUpdatedata, 0xff, UPDATE_DATA_BUF_SIZE);
 				pTail = pUpdatedata;
 			//flag	
@@ -782,10 +781,14 @@ void UdpFunc::run()
 					UploadResponseCmd(CMDD_PACKET_RETRANS);
 					if (1 == mUpSuccess) {
 						Update_FpgaFile();
+						if (NULL != pUpdatedata) {
+							free(pUpdatedata);
+							pUpdatedata = NULL;
+						}
 					}
 				}		
 			}
-
+		//暂时放着，后续考虑
 		//Update Linux File
 			if (*(m_pRecvCmd) == 0x66) {
 				if ( 0 == Update_SaveFile(recvbuf)) {
@@ -796,10 +799,6 @@ void UdpFunc::run()
 				}		
 			}
 
-		//将接收到的cmd写入管道，以便UdpSend()函数使用。过滤下面3个cmd	
-			// if ((*(m_pRecvCmd) == PC_COMMON_TYPE_SINGLE_SHORT) || (*(m_pRecvCmd) == PC_COMMON_TYPE_LIVE_ACQ) || (*(m_pRecvCmd) == PC_COMMON_TYPE_STOP_ACQ))
-				// write( *(int*)m_pPipFd1, m_pRecvCmd, 1);  
-
 		//丢包重传
 			if (*(m_pRecvCmd) == RECV_TYPE_PACKET_RETRANS) {
 				PacketRetransmission(recvbuf);
@@ -808,9 +807,7 @@ void UdpFunc::run()
 		//整帧重传
 			else if (*(m_pRecvCmd) == RECV_TYPE_FRAME_RETRANS) {
 				FrameRetransmission();
-			}
-
-			memset(recvbuf, 0x00, PC_SENDBUF_SIZE + 3);
+			}			
 		
 		//下载Gain校正模板
 			if (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_GAIN) {
@@ -833,6 +830,9 @@ void UdpFunc::run()
 				fclose(fp);
 				LogDebug("[%s:%s %u]  Download </home/root/Defect.raw> Successful! \n", __FILE__, __func__, __LINE__);
 			}
+
+
+			memset(recvbuf, 0x00, PC_SENDBUF_SIZE + 3);		//用完清空
 		}
 	}
                           

@@ -26,11 +26,8 @@
 #include "MyUDP.h"
 #include "UdpFunc.h"
 
-
 using namespace std; 
-//#define _debug
 
-//#define FILE_NAME "phon.raw"
 #define BuffSize 1024
 
 
@@ -46,8 +43,6 @@ UCHAR *pBramParameter;
 UCHAR *pBramAImage;
 UCHAR *pBramBImage;
 
-static int pip_fd1[2], pip_fd2[2];
-static int fd1_pip, fd2_pip;
 
 //udp准备
 static int UdpConnect(const char *pDstIp)
@@ -142,13 +137,6 @@ static void UdpSend()
 			case 5: {
 				memset(pBramState, 0xff, BRAM_SIZE_STATE);
 				LogDebug("[%s:%s %u]  Recv Fpga 0x05, SINGLE_SHORT, m_offset=%d, m_PanelSize=%d \n", __FILE__, __func__, __LINE__, ParaInfo.offset, ParaInfo.PanelSize);
-				//UCHAR readbuf[2] = {0};
-				//UCHAR writebuf[2] = {0};
-			//从管道里读取cmd
-				// if (read(fd1_pip, readbuf, 1) <= 0) {
-					// LogError("[%s:%s %u]  Read Pip Faild, buf=0x%x \n", __FILE__, __func__, __LINE__, readbuf[0]);
-					// break;
-				// }
 				if (0 == udpfunc.UploadImageData(CMDU_UPLOAD_IMAGE_SINGLE_SHOT, ParaInfo)) {
 					udpfunc.UploadStateCmd(CMDU_REPORT, FPD_STATUS_READY);
 				}
@@ -221,9 +209,12 @@ int main(int argc, char* argv[])
 		pBramState = pBramTmp + 0x8;			//FPGA_ADDRESS+8
 		pBramParameter = pBramTmp + 0x1000;		//FPGA_ADDRESS+1000
 
+		//状态、参数数据地址
 		udpfunc.p_bram_tail = pBramTmp;
 		udpfunc.p_bram_state = pBramState;
 		udpfunc.p_bram_parameter = pBramParameter;
+
+		//图像数据地址
 		udpfunc.p_bramA_image = pBramAImage;
 		udpfunc.p_bramB_image = pBramBImage;
 
@@ -234,36 +225,6 @@ int main(int argc, char* argv[])
 		close(fd_bram);
 		return -3;
     }  
-
-	UCHAR *pSendTmpbuf;
-	pSendTmpbuf= (UCHAR *)malloc(PACKET_MAX_SIZE + 1);
-	udpfunc.pSendBuf = pSendTmpbuf;
-
-	UCHAR *pSaveRam_C;
-	pSaveRam_C = (UCHAR *)malloc(BRAM_SIZE_IMAGE); //在offset固件校正时，bram C保存区缓存
-	udpfunc.pSaveRam = pSaveRam_C;
-
-
-	UCHAR *pUpdateTmpbuf;
-	pUpdateTmpbuf = (UCHAR *)malloc(UPDATE_DATA_BUF_SIZE);
-	udpfunc.pUpdatedata = pUpdateTmpbuf;
-	
-#if 0
-	//创建读写管道，fd[0]在管道读取，fd[1]在管道写入 
-	if(pipe(pip_fd1) < 0)
-	{
-		LogError("[%s:%s %u]  pip_fd1 error \n", __FILE__, __func__, __LINE__);
-	}
-	// if(pipe(pip_fd2) < 0)
-	// {
-		// TERR("pip_fd2 error\n");
-	// }
-
-	fd1_pip = pip_fd1[0];
-	fd2_pip = pip_fd2[1];
-	udpfunc.m_pPipFd1 = &pip_fd1[1];
-	udpfunc.m_pPipFd2 = &pip_fd1[0];
-#endif
 
 	//udp连接，接收线程
 	udpfunc.start();

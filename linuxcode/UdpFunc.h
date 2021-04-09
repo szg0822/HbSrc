@@ -206,16 +206,7 @@ public:
 	UCHAR *p_bram_parameter; 	//映射的参数数据地址
 	UCHAR *p_bramA_image;		//映射的图像数据A地址
 	UCHAR *p_bramB_image;		//映射的图像数据B地址
-	UCHAR *p_bram_tail;
-
-	//malloc
-	UCHAR *pUpdatedata;           //更新固件的保存数据地址
-	UCHAR *pSendBuf;			  //组包后临时存放的地址
-	UCHAR *pSaveRam;			  //在offset固件校正时，bram C保存区缓
-
-
-	int *m_pPipFd1;   			//管道（写）
-	int *m_pPipFd2;   			//管道（读）
+	UCHAR *p_bram_tail;			//映射的临时地址
 
 	
 private:
