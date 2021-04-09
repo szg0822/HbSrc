@@ -1,6 +1,6 @@
 
 ./linuxcode/*.o
-./linuxcode/demo*
+./linuxcode/dem*
 
 
 ./serial/*.o
