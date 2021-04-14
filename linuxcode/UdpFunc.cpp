@@ -22,9 +22,6 @@
 #define BuffSize 1024
 #define TIMEOUT 2       //超时等待2秒
 
-//static char const *szdstIp = "192.168.10.20";    //目标主机IP
-//static char const *szsrcIp = "192.168.10.21";    //本机IP
-
 static UCHAR *pSendBuf;				//组包后临时存放的地址
 //update
 static UCHAR *pUpdatedata; 			//更新固件的保存数据地址
@@ -141,8 +138,9 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	FILE * fpFile;
 	long lSize,lCount;
 
-	UCHAR *pTmpGainBuf;
-	UCHAR *pTmpDefectBuf;
+	//必须初始化，否则free会段错误
+	UCHAR *pTmpGainBuf = NULL;
+	UCHAR *pTmpDefectBuf = NULL;
 
 	memset(pSaveRam, 0x00, BRAM_SIZE_IMAGE);
 
@@ -152,7 +150,6 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	PanelSize = ParaInfo.PanelSize;
 	SV = ParaInfo.SaturationV;
 
-	printf("test:offset=%d, gain=%d, defect=%d, panelsize=%d, sv=%d\n", offset, gain, defect, PanelSize, SV);
 //安全考虑
 	if ((offset < 0) || (offset > 3)) 
 		offset = 0;
@@ -211,120 +208,121 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 
 	//Gain模板固件校正
 		if (2 == gain) {
-		//申请Gain校正后的地址
-			pTmpGainBuf = (UCHAR *)malloc(ImageLen * 2);
-			memset(pTmpGainBuf, 0, ImageLen * 2);
-
-		//拷贝Gain校正模板数据
 			fpFile = fopen(FILE_NAME_GAIN, "r");
 			if (NULL == fpFile) {
-				LogError("[%s:%s %u]  Open file<%s> failed! \n", __FILE__, __func__, __LINE__, FILE_NAME_GAIN);
-				return -1;
+				LogError("[%s:%s %u]  No template downloaded (file<%s> failed!) \n", __FILE__, __func__, __LINE__, FILE_NAME_GAIN);
 			}
-			fseek(fpFile, 0L, SEEK_END);
-			lSize = ftell(fpFile);
-			lCount = lSize / sizeof(USHORT);
-			ipPtr = (USHORT*)malloc(lSize);
-			memset(ipPtr, 0, lSize);
-			fread(ipPtr,sizeof(USHORT),lCount,fpFile);
-			fclose(fpFile);
+			else {
+			//申请Gain校正后的地址
+				pTmpGainBuf = (UCHAR *)malloc(ImageLen * 2);
+				memset(pTmpGainBuf, 0, ImageLen * 2);
 
-			USHORT TMP_Gain = 0;
-			int j = 0;
-			for (int i = 0; i < ImageLen; i++) {
-				TMP_Gain = (pSaveRam[i] / ipPtr[i]) * 1024;
-				if (TMP_Gain >= SV) {
-					TMP_Gain = SV;
-				}
-				pTmpGainBuf[j] = TMP_Gain & 0xff;
-				pTmpGainBuf[j + 1] = (TMP_Gain >> 8) & 0xff;
-				j += 2;
-			}
-			free(ipPtr);
-			ipPtr = NULL;
-
-			pTmpGainBuf[ImageLen * 2] = '\0';
-			pImage = pTmpGainBuf;
-
-
-		//Defect模板固件校正
-			if (2 == defect) {
-				//ImageLenBuf[2 * PanelSize - 2] * ImageLenBuf[2 * PanelSize - 1];
-				UINT TmpLenX = ImageLenBuf[2 * PanelSize - 2];
-				UINT TmpLenY = ImageLenBuf[2 * PanelSize - 1];
-
-				USHORT pTGain[TmpLenX][TmpLenY] = {0};
-				memcpy(&pTGain, (USHORT *)pTmpGainBuf, ImageLen);
-				
-				
-
-				typedef struct defect {
-					unsigned x:12;
-					unsigned y:12;
-					unsigned de:8;
-				}defect_t;
-
-				defect_t * Pdefect;
-				UINT iTmp[8];
-				UINT sum = 0;
-
-				//拷贝Gain校正模板数据
-				fpFile = fopen(FILE_NAME_DEFECT, "r");
-				if (NULL == fpFile) {
-					LogError("[%s:%s %u]  Open file<%s> failed! \n", __FILE__, __func__, __LINE__, FILE_NAME_DEFECT);
-					return -1;
-				}
+			//拷贝Gain校正模板数据
 				fseek(fpFile, 0L, SEEK_END);
 				lSize = ftell(fpFile);
-				lCount = lSize / sizeof(defect_t);
-				Pdefect = (defect_t*)malloc(lSize);
-				memset(Pdefect, 0, lSize);
-				fread(Pdefect, sizeof(defect_t), lCount, fpFile);
+				lCount = lSize / sizeof(USHORT);
+				ipPtr = (USHORT*)malloc(lSize);
+				memset(ipPtr, 0, lSize);
+				fread(ipPtr,sizeof(USHORT),lCount,fpFile);
 				fclose(fpFile);
 
-				for(int i = 0; i < lCount; i++) {
-					int count = 0;
-					int TmpJ[8];
-					for(int j = 0; j < 8; j++) {
-						iTmp[j] = ((Pdefect[i].de >> j) & 1);
-						printf("tmp[%d]=%d", j , iTmp[j]);
-						
-						if (1 == iTmp[j]) {
-							count++;	
-							if (0 == j)
-								sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y - 1];	
-							else if (1 == j)
-								sum += pTGain[Pdefect[i].x][Pdefect[i].y - 1];
-							else if (2 == j)
-								sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y - 1];
-							else if (3 == j)
-								sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y];
-							else if (4 == j)
-								sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y];
-							else if (5 == j)
-								sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y + 1];
-							else if (6 == j)
-								sum += pTGain[Pdefect[i].x][Pdefect[i].y + 1];
-							else if (7 == j)
-								sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y + 1];
-						}
+				USHORT TMP_Gain = 0;
+				int j = 0;
+				for (int i = 0; i < ImageLen; i++) {
+					TMP_Gain = (pSaveRam[i] / ipPtr[i]) * 1024;
+					if (TMP_Gain >= SV) {
+						TMP_Gain = SV;
 					}
-
-					pTGain[Pdefect[i].x][Pdefect[i].y] = sum / count;	
+					pTmpGainBuf[j] = TMP_Gain & 0xff;
+					pTmpGainBuf[j + 1] = (TMP_Gain >> 8) & 0xff;
+					j += 2;
 				}
+				free(ipPtr);
+				ipPtr = NULL;
 
-				//申请Defect校正后的地址
-				pTmpDefectBuf = (UCHAR *)malloc(ImageLen * 2);
-				memset(pTmpDefectBuf, 0, ImageLen * 2);
-				memcpy(pTmpDefectBuf, (UCHAR *)pTGain, ImageLen * 2);
+				pTmpGainBuf[ImageLen * 2] = '\0';
+				pImage = pTmpGainBuf;
 
-				pTmpDefectBuf[ImageLen * 2] = '\0';
-				pImage = pTmpDefectBuf;
 
-				free(Pdefect);
-				Pdefect = NULL;
+			//Defect模板固件校正
+				if (2 == defect) {
+					fpFile = fopen(FILE_NAME_DEFECT, "r");
+					if (NULL == fpFile) {
+						LogError("[%s:%s %u]  No template downloaded (file<%s> failed!) \n", __FILE__, __func__, __LINE__, FILE_NAME_DEFECT);
+					}
+					else {
+						//ImageLenBuf[2 * PanelSize - 2] * ImageLenBuf[2 * PanelSize - 1];
+						UINT TmpLenX = ImageLenBuf[2 * PanelSize - 2];
+						UINT TmpLenY = ImageLenBuf[2 * PanelSize - 1];
+
+						USHORT pTGain[TmpLenX][TmpLenY] = {0};
+						memcpy(&pTGain, (USHORT *)pTmpGainBuf, ImageLen);
+						
+						
+
+						typedef struct defect {
+							unsigned x:12;
+							unsigned y:12;
+							unsigned de:8;
+						}defect_t;
+
+						defect_t * Pdefect;
+						UINT iTmp[8];
+						UINT sum = 0;
+
+						//拷贝Gain校正模板数据
+						fseek(fpFile, 0L, SEEK_END);
+						lSize = ftell(fpFile);
+						lCount = lSize / sizeof(defect_t);
+						Pdefect = (defect_t*)malloc(lSize);
+						memset(Pdefect, 0, lSize);
+						fread(Pdefect, sizeof(defect_t), lCount, fpFile);
+						fclose(fpFile);
+
+						for(int i = 0; i < lCount; i++) {
+							int count = 0;
+							int TmpJ[8];
+							for(int j = 0; j < 8; j++) {
+								iTmp[j] = ((Pdefect[i].de >> j) & 1);
+								printf("tmp[%d]=%d", j , iTmp[j]);
+								
+								if (1 == iTmp[j]) {
+									count++;	
+									if (0 == j)
+										sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y - 1];	
+									else if (1 == j)
+										sum += pTGain[Pdefect[i].x][Pdefect[i].y - 1];
+									else if (2 == j)
+										sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y - 1];
+									else if (3 == j)
+										sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y];
+									else if (4 == j)
+										sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y];
+									else if (5 == j)
+										sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y + 1];
+									else if (6 == j)
+										sum += pTGain[Pdefect[i].x][Pdefect[i].y + 1];
+									else if (7 == j)
+										sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y + 1];
+								}
+							}
+
+							pTGain[Pdefect[i].x][Pdefect[i].y] = sum / count;	
+						}
+
+						//申请Defect校正后的地址
+						pTmpDefectBuf = (UCHAR *)malloc(ImageLen * 2);
+						memset(pTmpDefectBuf, 0, ImageLen * 2);
+						memcpy(pTmpDefectBuf, (UCHAR *)pTGain, ImageLen * 2);
+
+						pTmpDefectBuf[ImageLen * 2] = '\0';
+						pImage = pTmpDefectBuf;
+
+						free(Pdefect);
+						Pdefect = NULL;
+					}
+				}
 			}
-
 			
 		}
 	}
@@ -638,6 +636,7 @@ void *UdpFunc::MyMemcpy(void *dest, const void *src, size_t count)
 	return dest;
 }
 
+
 /*********************************************************
 * 函 数 名: DownloadCurrencyTemplate
 * 功能描述: 下载通用校正模板
@@ -748,6 +747,8 @@ void UdpFunc::run()
 	pSaveRam = (UCHAR *)malloc(BRAM_SIZE_IMAGE); //在offset固件校正时，bram C保存区缓存
 	memset(pSaveRam, 0x00, BRAM_SIZE_IMAGE);
 
+	UINT *pTmpPara = NULL;
+	UINT *pTmprecvbuf = NULL;
 
 	while(1){
 		length = UDP_RECV((UCHAR *)recvbuf, PACKET_MAX_SIZE);
@@ -756,11 +757,23 @@ void UdpFunc::run()
 
 			//因固件不支持memcpy（会出现Bus error），自己封装函数
 			//memcpy(p_bram_parameter, recvbuf, PC_SENDBUF_SIZE + 3); //透传1049+3个0x00,共1052;
-			MyMemcpy(p_bram_parameter, recvbuf, PC_SENDBUF_SIZE + 3);
+			//MyMemcpy(p_bram_parameter, recvbuf, PC_SENDBUF_SIZE + 3); //不能配置参数，需要每次拷贝4个字节
+
+			pTmpPara = (UINT *)p_bram_parameter;
+			pTmprecvbuf = (UINT *)recvbuf;
+			for(int i = 0; i < 1052 / 4; i++) {
+				pTmpPara[i] = pTmprecvbuf[i];
+			}
 
 			m_pRecvCmd = (UCHAR *)(recvbuf + OFFSET_PACKAGE_CMD); //CMD
-			if ((*(m_pRecvCmd) != RECV_TYPE_Firmware_Update) || (*(m_pRecvCmd) != RECV_TYPE_DOWNLOAD_GAIN)) 
+
+			if ((*(m_pRecvCmd) == RECV_TYPE_Firmware_Update) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_GAIN)) {
+				//屏蔽不必要的打印
+			}else {
 				LogDebug("[%s:%s %u]  Recv XDStatic Cmd=0x%.2x \n", __FILE__, __func__, __LINE__,  *(m_pRecvCmd));
+			}
+			
+				
 
 		//擦除frame（每次update，都会先发一次0x4f；我这里只做回应）
 			if (*(m_pRecvCmd) == RECV_TYPE_ERASE_FLASH) {
@@ -811,24 +824,24 @@ void UdpFunc::run()
 		
 		//下载Gain校正模板
 			if (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_GAIN) {
-				if((fp=fopen("/home/root/Gain.raw","wt+")) == NULL)
+				if((fp=fopen(FILE_NAME_GAIN,"wt+")) == NULL)
 				{
-					LogError("[%s:%s %u]  open </home/root/Gain.raw> file error \n", __FILE__, __func__, __LINE__);
+					LogError("[%s:%s %u]  open <%s> file error \n", __FILE__, __func__, __LINE__, FILE_NAME_GAIN);
 				}
 				fwrite(recvbuf, sizeof(UCHAR), PC_SENDBUF_SIZE, fp);			
 				fclose(fp);
-				LogDebug("[%s:%s %u]  Download </home/root/Gain.raw> Successful! \n", __FILE__, __func__, __LINE__);
+				LogDebug("[%s:%s %u]  Download <%s> Successful! \n", __FILE__, __func__, __LINE__, FILE_NAME_GAIN);
 			}
 
 		//下载Defect校正模板
 			if (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_DEFECT) {
-				if((fp=fopen("/home/root/Defect.raw","wt+")) == NULL)
+				if((fp=fopen(FILE_NAME_DEFECT,"wt+")) == NULL)
 				{
-					LogError("[%s:%s %u]  open </home/root/Defect.raw> file error \n", __FILE__, __func__, __LINE__);
+					LogError("[%s:%s %u]  open <%s> file error \n", __FILE__, __func__, __LINE__, FILE_NAME_DEFECT);
 				}
 				fwrite(recvbuf, sizeof(UCHAR), PC_SENDBUF_SIZE, fp);			
 				fclose(fp);
-				LogDebug("[%s:%s %u]  Download </home/root/Defect.raw> Successful! \n", __FILE__, __func__, __LINE__);
+				LogDebug("[%s:%s %u]  Download <%s> Successful! \n", __FILE__, __func__, __LINE__, FILE_NAME_DEFECT);
 			}
 
 

@@ -189,7 +189,7 @@ int MyUDP::UDP_RECV(unsigned char *szBuff, int nSize)
 	int nlen = 0;
 
 	struct timeval udp_tmvl;
-	udp_tmvl.tv_sec = 0;
+	udp_tmvl.tv_sec = 2;
 	udp_tmvl.tv_usec = 100 * 1000;
 
 	errno = 0;

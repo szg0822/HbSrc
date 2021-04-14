@@ -30,9 +30,8 @@ using namespace std;
 
 #define BuffSize 1024
 
-
-char const *szdstIp = "192.168.10.20";
-char const *szsrcIp = "192.168.10.21";
+static char const *szdstIp = "192.168.10.20";    //目标主机IP
+static char const *szsrcIp = "192.168.10.80";    //本机IP
 UdpFunc udpfunc;//线程对象
 
 
@@ -43,7 +42,7 @@ UCHAR *pBramParameter;
 UCHAR *pBramAImage;
 UCHAR *pBramBImage;
 
-
+#if 0
 //udp准备
 static int UdpConnect(const char *pDstIp)
 {	
@@ -66,7 +65,7 @@ static int UdpConnect(const char *pDstIp)
 	}
 	return 0;
 }        
-
+#endif
 //udp准备
 static int UdpConnect()
 {	
@@ -83,6 +82,7 @@ static int UdpConnect()
 	}
 	return 0;
 }        
+
 
 /*********************************************************
 * 函 数 名: UdpSend()
@@ -103,7 +103,6 @@ static void UdpSend()
 	while(1)
 	{
 		usleep(50 * 1000); //50ms
-
 		switch (pBramState[0]) {
 			case 3: {
 				LogDebug("[%s:%s %u]  Recv Fpga 0x03, Parameter \n", __FILE__, __func__, __LINE__);
@@ -136,7 +135,8 @@ static void UdpSend()
 			}
 			case 5: {
 				memset(pBramState, 0xff, BRAM_SIZE_STATE);
-				LogDebug("[%s:%s %u]  Recv Fpga 0x05, SINGLE_SHORT, m_offset=%d, m_PanelSize=%d \n", __FILE__, __func__, __LINE__, ParaInfo.offset, ParaInfo.PanelSize);
+				LogDebug("[%s:%s %u]  Recv Fpga 0x05, SINGLE_SHORT, Offset=%d, Gain=%d, Defect=%d, PanelSize=%d, SaturationValue=%d \n", \
+						__FILE__, __func__, __LINE__, ParaInfo.offset, ParaInfo.gain, ParaInfo.defect, ParaInfo.PanelSize, ParaInfo.SaturationV);
 				if (0 == udpfunc.UploadImageData(CMDU_UPLOAD_IMAGE_SINGLE_SHOT, ParaInfo)) {
 					udpfunc.UploadStateCmd(CMDU_REPORT, FPD_STATUS_READY);
 				}

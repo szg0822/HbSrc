@@ -72,7 +72,7 @@
 #define RECV_TYPE_ERASE_FLASH         	0x4F     //升级软件时擦除软件的命令
 #define RECV_TYPE_Firmware_Update       0x50     //下发的软件升级的数据包
 #define RECV_TYPE_DOWNLOAD_GAIN       	0x2F     //下载Gain校正模板
-#define RECV_TYPE_DOWNLOAD_DEFECT       0x66     //下载Defect校正模板
+#define RECV_TYPE_DOWNLOAD_DEFECT       0x30     //下载Defect校正模板
 
 //上位机下发的命令
 typedef enum tagTCmdID {
