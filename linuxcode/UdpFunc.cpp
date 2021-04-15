@@ -169,6 +169,10 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	mImageLen = ImageLen;
 
 //offset选择
+	//修改：当offset为1或3时，没有实现，需要赋值为0，否则上不了图
+	if ((1 == offset) || (3 == offset)) {
+		offset = 0;
+	}
 //不做校正
 	if (0 == offset) {
 		pImage = p_bramA_image;
