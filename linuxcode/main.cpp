@@ -102,7 +102,7 @@ static void UdpSend()
 
 	while(1)
 	{
-		usleep(50 * 1000); //50ms
+		usleep(20 * 1000); //20ms
 		switch (pBramState[0]) {
 			case 3: {
 				LogDebug("[%s:%s %u]  Recv Fpga 0x03, Parameter \n", __FILE__, __func__, __LINE__);

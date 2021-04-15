@@ -352,7 +352,7 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 		}
 		packageNo++;
 		pImage += TMP_BUFFER_SIZE;
-		usleep(5); //降低发送速度
+		//usleep(5); //降低发送速度
 		//printf("packageNo=%d,ImageLen/2=%d\n", packageNo, ImageLen / 512);
 	}
 	LogDebug("[%s:%s %u]  UploadImageData success! \n", __FILE__, __func__, __LINE__);
@@ -462,7 +462,7 @@ void UdpFunc::PacketRetransmission(UCHAR *recvbuf)
 		if (0 != UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE)) {
 			LogError("[%s:%s %u]  UDP_SEND Failed! \n", __FILE__, __func__, __LINE__);
 		}
-		usleep(5); //降低发送速度
+		//usleep(5); //降低发送速度
 
 		count += 2;		//一步2个字节
 	}
@@ -504,7 +504,7 @@ void UdpFunc::FrameRetransmission()
 		}
 		packageNo++;
 		TmpBram += TMP_BUFFER_SIZE;
-		usleep(5); //降低发送速度
+		//usleep(5); //降低发送速度
 	}
 	UploadStateCmd(CMDU_REPORT, FPD_STATUS_READY);
 	LogDebug("[%s:%s %u]  Frame Retransmission Success! Packet_num=%d \n", __FILE__, __func__, __LINE__, packageNo);
