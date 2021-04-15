@@ -1,0 +1,68 @@
+04-08 10:52:32 [20744] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][92] hbiwdog start£¡!
+04-08 10:52:32 [20744] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][127] hbi_init_reg
+04-08 10:52:32 [20744] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][221] HBI_RegEventCallBackFun
+04-08 10:52:32 [20744] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][236] hbi_registar_callback:succss!
+04-08 10:52:33 [20744] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][254] hbi_user_check at time:2021-04-08 10:52
+04-08 10:52:33 [20744] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][237] Administrator user:time1=10,user_time=10
+04-08 10:52:33 [20744] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][239] Total days is 10,The remaining number of days is 10
+04-08 10:52:33 [20744] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][277] ReflashRegisterInfo success!
+04-08 10:52:33 [20744] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][276] hbi_user_check success!
+04-08 10:55:32 [20744] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][148] hbi_del_reg
+04-08 14:26:32 [05392] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][92] hbiwdog start£¡!
+04-08 14:26:32 [05392] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][127] hbi_init_reg
+04-08 14:26:32 [05392] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][221] HBI_RegEventCallBackFun
+04-08 14:26:32 [05392] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][236] hbi_registar_callback:succss!
+04-08 14:26:32 [05392] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][254] hbi_user_check at time:2021-04-08 14:26
+04-08 14:26:32 [05392] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][237] Administrator user:time1=10,user_time=10
+04-08 14:26:32 [05392] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][239] Total days is 10,The remaining number of days is 10
+04-08 14:26:32 [05392] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][277] ReflashRegisterInfo success!
+04-08 14:26:32 [05392] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][276] hbi_user_check success!
+04-08 15:12:12 [05392] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][148] hbi_del_reg
+04-08 15:12:12 [05392] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][101][hbiwdog end£¡!]
+04-08 15:12:17 [14720] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][92] hbiwdog start£¡!
+04-08 15:12:17 [14720] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][127] hbi_init_reg
+04-08 15:12:17 [14720] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][221] HBI_RegEventCallBackFun
+04-08 15:12:17 [14720] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][236] hbi_registar_callback:succss!
+04-08 15:12:17 [14720] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][254] hbi_user_check at time:2021-04-08 15:12
+04-08 15:12:17 [14720] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][237] Administrator user:time1=10,user_time=10
+04-08 15:12:17 [14720] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][239] Total days is 10,The remaining number of days is 10
+04-08 15:12:17 [14720] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][277] ReflashRegisterInfo success!
+04-08 15:12:17 [14720] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][276] hbi_user_check success!
+04-08 17:33:21 [14720] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][148] hbi_del_reg
+04-08 17:33:25 [14816] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][92] hbiwdog start£¡!
+04-08 17:33:25 [14816] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][127] hbi_init_reg
+04-08 17:33:25 [14816] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][221] HBI_RegEventCallBackFun
+04-08 17:33:25 [14816] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][236] hbi_registar_callback:succss!
+04-08 17:33:26 [14816] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][254] hbi_user_check at time:2021-04-08 17:33
+04-08 17:33:26 [14816] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][237] Administrator user:time1=10,user_time=10
+04-08 17:33:26 [14816] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][239] Total days is 10,The remaining number of days is 10
+04-08 17:33:26 [14816] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][277] ReflashRegisterInfo success!
+04-08 17:33:26 [14816] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][276] hbi_user_check success!
+04-08 17:46:27 [14816] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][148] hbi_del_reg
+04-08 17:46:29 [14816] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][101][hbiwdog end£¡!]
+04-08 17:47:34 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][92] hbiwdog start£¡!
+04-08 17:47:34 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][127] hbi_init_reg
+04-08 17:47:34 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][221] HBI_RegEventCallBackFun
+04-08 17:47:34 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][236] hbi_registar_callback:succss!
+04-08 17:47:34 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][254] hbi_user_check at time:2021-04-08 17:47
+04-08 17:47:34 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][237] Administrator user:time1=10,user_time=10
+04-08 17:47:34 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][239] Total days is 10,The remaining number of days is 10
+04-08 17:47:35 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][277] ReflashRegisterInfo success!
+04-08 17:47:35 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][276] hbi_user_check success!
+04-08 17:47:37 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][201] hbi_user_wnd
+04-08 17:47:37 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\registerdlg.cpp][70] 2917157212
+04-08 17:47:54 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][295] ReflashUnRegisterInfo success!
+04-08 17:47:54 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\registerdlg.cpp][302] err:UnReflashRegisterInfo success!
+04-08 17:47:58 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][212] warning:register failed or cancel!
+04-08 17:48:16 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][201] hbi_user_wnd
+04-08 17:48:16 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\registerdlg.cpp][70] 2917157212
+04-08 17:48:37 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][212] warning:register failed or cancel!
+04-08 17:48:40 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][148] hbi_del_reg
+04-08 17:48:40 [10208] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][101][hbiwdog end£¡!]
+04-08 17:48:43 [12912] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][92] hbiwdog start£¡!
+04-08 17:48:43 [12912] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][127] hbi_init_reg
+04-08 17:48:43 [12912] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][221] HBI_RegEventCallBackFun
+04-08 17:48:43 [12912] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][236] hbi_registar_callback:succss!
+04-08 17:48:43 [12912] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][254] hbi_user_check at time:2021-04-08 17:48
+04-08 17:48:43 [12912] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\regplugin.cpp][145] err:user_id's length=0
+04-08 17:48:43 [12912] :[e:\hbi_fpd_preview\hbiwdog\hbiwdog\hbiwdog.cpp][272] err:hbi_user_check failed!

@@ -1,0 +1,70 @@
+注意：
+1、SAEC模式仅支持Panel-2530-85um平板；
+2、SAEC模式的触发模式为:trigger mode=0x08;
+3、步骤：
+   1》调用HBI_SAecModeApply接口函数，其中preview为1表示为上传preview图像，反之为0上传正常图像，
+      m_nPerReadyTm, m_nPostReadyTm分别为FPD per ready delay time和FPD post ready delay time；
+   2》调用HBI_SAecModeApply接口函数，其中preview为0表示为上传正常图像，另外m_nPerReadyTm和m_nPostReadyTm非关键参数默认即可；
+   3》调用HBI_SAecAcq接口函数完成正常采图；
+   4》回调函数中事件ID:
+   CASE ECALLBACK_TYPE_SINGLE_IMAGE:正常图像,例如Panel-2530-85um，分辨率默认为width=2816，height=3584；
+   CASE ECALLBACK_TYPE_PREVIEW_IMAGE:previe图像，例如Panel-2530-85um，分辨率默认为:wwidth=2816/4=704,height=3584/4=896;
+
+void CSAecModeTester::OnBnClickedBtnSaecAutoTest()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	this->UpdateData(TRUE);
+	//
+	if (!IsOpen) {
+		AfxMessageBox(_T("err:FPD is disconnect!"));
+		return;
+	}
+	//
+	if (m_pRegRomCfg == NULL) {
+		AfxMessageBox(_T("err:m_pRegRomCfg!"));
+		return;
+	}
+	//
+	if (m_pRegRomCfg->m_SysBaseInfo.m_byPanelSize != 0x05) {
+		AfxMessageBox(_T("err:FPD is not Pane2530-85um!"));
+		return;
+	}
+	//
+	if (m_nPerReadyTm * m_nPostReadyTm <= 0) {
+		AfxMessageBox(_T("err:Ready Time is error!"));
+		return;
+	}
+	// STEP1
+	theDoc->ReportError(_T("STEP1:SAEC Preview-Mode Start!"));
+	int preview = 0x01; // 01-Preview Image;00-Normal Image;
+	int ret = HBI_SAecModeApply(m_pFpd, preview, m_nPerReadyTm, m_nPostReadyTm);
+	if (ret != HBI_SUCCSS) {
+		AfxMessageBox(_T("err:Set SAEC Preview-Mode failed!"));
+		return;
+	}
+	ReportError(_T("STEP1:SAEC Preview-Mode Finished!"));
+
+	// 等待上传preview图像
+	ReportError(_T("STEP1:SAEC Preview-Image!"));
+	// 。。。。。。
+	ReportError(_T("STEP1:SAEC update hvg dose!"));
+	// 分析preview图像更改剂量
+
+	// STEP2
+	ReportError(_T("STEP2:SAEC Normal-Mode Start!"));
+	preview = 0x00; // 01-Preview Image;00-Normal Image;
+	ret = HBI_SAecModeApply(m_pFpd, preview, m_nPerReadyTm, m_nPostReadyTm);
+	if (ret != HBI_SUCCSS) {
+		AfxMessageBox(_T("err:Set SAEC Normal-Mode failed!"));
+		return;
+	}
+	ReportError(_T("STEP2:SAEC Normal-Mode Finished!"));
+	// STEP3
+	ReportError(_T("STEP3:SAEC Acquition Image Start!"));
+	ret = HBI_SAecAcq(m_pFpd);
+	if (ret != HBI_SUCCSS) {
+		AfxMessageBox(_T("err:Send SAEC Acquition Image!"));
+		return;
+	}
+	ReportError(_T("STEP3:SAEC Acquition Image Finished!"));
+}
