@@ -24,7 +24,7 @@
 
 static UCHAR *pSendBuf;				//组包后临时存放的地址
 //update
-static UCHAR *pUpdatedata; 			//更新固件的保存数据地址
+static UCHAR *pUpdatedata = NULL; 			//更新固件的保存数据地址
 static UCHAR *pTail;				//指向更新固件的保存数据地址
 static UINT mUpPackNumFlag = 0;		//update数据包的个数只需要获取一次就行，这里上个锁
 static UINT mUpSuccess = 0;			//update数据包成功的标志
@@ -348,6 +348,14 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 		
 		if (0 != UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE)) {
 			LogError("[%s:%s %u]=== UDP_SEND failed!", __FILE__, __func__, __LINE__);
+			if (NULL != pTmpGainBuf) {
+				free(pTmpGainBuf);
+				pTmpGainBuf = NULL;
+			}
+			if (NULL != pTmpDefectBuf) {
+				free(pTmpDefectBuf);
+				pTmpDefectBuf = NULL;
+			}
 			return -1;
 		}
 		packageNo++;
@@ -784,7 +792,10 @@ void UdpFunc::run()
 				UploadResponseCmd(CMDD_FRAME_RETRANS);
 				//上一次update失败后，下一次需要恢复参数数据
 				mPackCount = 0;
-
+				if (NULL != pUpdatedata) {
+					free(pUpdatedata);
+					pUpdatedata = NULL;
+				}
 				pUpdatedata = (UCHAR *)malloc(UPDATE_DATA_BUF_SIZE);
 				memset(pUpdatedata, 0xff, UPDATE_DATA_BUF_SIZE);
 				pTail = pUpdatedata;
