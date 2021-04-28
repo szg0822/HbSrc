@@ -110,8 +110,8 @@ typedef struct ParameterInfo
 }parameter_t;
 
 
-#define FILE_NAME_GAIN 			"/home/root/Gain.raw"
-#define FILE_NAME_DEFECT 		"/home/root/Defect.raw"
+#define FILE_NAME_GAIN 			"/home/root/szg/gain.raw"
+#define FILE_NAME_DEFECT 		"/home/root/szg/defect.dld"
 
 class UdpFunc:public Thread,public MyUDP
 {

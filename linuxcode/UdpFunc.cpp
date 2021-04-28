@@ -39,10 +39,42 @@ static UINT mImageLen = 0;			//图像像素
 
 static UINT mPackCount = 0;			//UpdateFirmware 包的数量
 
+typedef struct defect {
+	unsigned x:12;
+	unsigned y:12;
+	unsigned de:8;
+}defect_t;
+
 UdpFunc::UdpFunc()
 {}
 UdpFunc::~UdpFunc()
 {}
+
+void *UdpFunc::MyMemcpy(void *dest, const void *src, size_t count)
+{
+	char *d;
+	const char *s;
+
+	if (dest == NULL || src == NULL) 
+        return NULL;
+
+	if ((dest > (src+count)) || (dest < src))
+	{
+		d = (char *)dest;
+		s = (char *)src;
+		while (count--)
+			*d++ = *s++;        
+	}
+	else /* overlap */
+	{
+		d = (char *)(dest + count - 1); /* offset of pointer is from 0 */
+		s = (char *)(src + count -1);
+		while (count --)
+			*d-- = *s--;
+	}
+
+	return dest;
+}
 
 
 /*********************************************************
@@ -259,20 +291,16 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 						UINT TmpLenX = ImageLenBuf[2 * PanelSize - 2];
 						UINT TmpLenY = ImageLenBuf[2 * PanelSize - 1];
 
-						USHORT pTGain[TmpLenX][TmpLenY] = {0};
-						memcpy(&pTGain, (USHORT *)pTmpGainBuf, ImageLen);
-						
-						
-
-						typedef struct defect {
-							unsigned x:12;
-							unsigned y:12;
-							unsigned de:8;
-						}defect_t;
+						USHORT (*pTGain)[TmpLenY]=(USHORT(*)[TmpLenY])malloc(sizeof(USHORT)*ImageLen);
+						int tmp = 0;
+						for (int x = 0; x < TmpLenX; x++)
+							for (int y = 0; y < TmpLenY; y++) {
+								pTGain[x][y] = (USHORT)pImage[tmp];
+								tmp += 2;
+							}							
 
 						defect_t * Pdefect;
-						UINT iTmp[8];
-						UINT sum = 0;
+						UINT iTmp[8];						
 
 						//拷贝Gain校正模板数据
 						fseek(fpFile, 0L, SEEK_END);
@@ -284,30 +312,41 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 						fclose(fpFile);
 
 						for(int i = 0; i < lCount; i++) {
-							int count = 0;
+							UINT count = 0;
+							UINT sum = 0;
 							int TmpJ[8];
 							for(int j = 0; j < 8; j++) {
 								iTmp[j] = ((Pdefect[i].de >> j) & 1);
 								printf("tmp[%d]=%d", j , iTmp[j]);
 								
-								if (1 == iTmp[j]) {
-									count++;	
-									if (0 == j)
-										sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y - 1];	
-									else if (1 == j)
-										sum += pTGain[Pdefect[i].x][Pdefect[i].y - 1];
-									else if (2 == j)
-										sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y - 1];
-									else if (3 == j)
-										sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y];
-									else if (4 == j)
-										sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y];
-									else if (5 == j)
-										sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y + 1];
-									else if (6 == j)
-										sum += pTGain[Pdefect[i].x][Pdefect[i].y + 1];
-									else if (7 == j)
-										sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y + 1];
+								if (0 == iTmp[j]) {
+									count++;
+									switch (j) {
+										case 0:
+											sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y - 1];	
+											break;
+										case 1:
+											sum += pTGain[Pdefect[i].x][Pdefect[i].y - 1];
+											break;
+										case 2:
+											sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y - 1];
+											break;
+										case 3:
+											sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y];
+											break;
+										case 4:
+											sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y];
+											break;
+										case 5:
+											sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y + 1];
+											break;
+										case 6:
+											sum += pTGain[Pdefect[i].x][Pdefect[i].y + 1];
+											break;
+										case 7:
+											sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y + 1];
+											break;
+									}	
 								}
 							}
 
@@ -317,13 +356,16 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 						//申请Defect校正后的地址
 						pTmpDefectBuf = (UCHAR *)malloc(ImageLen * 2);
 						memset(pTmpDefectBuf, 0, ImageLen * 2);
-						memcpy(pTmpDefectBuf, (UCHAR *)pTGain, ImageLen * 2);
+						MyMemcpy(pTmpDefectBuf, (UCHAR *)pTGain, ImageLen * 2);
 
 						pTmpDefectBuf[ImageLen * 2] = '\0';
 						pImage = pTmpDefectBuf;
 
 						free(Pdefect);
 						Pdefect = NULL;
+
+						free(pTGain);
+						pTGain = NULL;
 					}
 				}
 			}
@@ -610,6 +652,7 @@ void UdpFunc::Update_FpgaFile()
 	}
 }
 
+//暂时放着，后续考虑
 void UdpFunc::Update_LinuxFile()
 {
 	//update demo
@@ -621,33 +664,6 @@ void UdpFunc::Update_LinuxFile()
 		HBExecShell("reboot");
 	}
 }
-
-void *UdpFunc::MyMemcpy(void *dest, const void *src, size_t count)
-{
-	char *d;
-	const char *s;
-
-	if (dest == NULL || src == NULL) 
-        return NULL;
-
-	if ((dest > (src+count)) || (dest < src))
-	{
-		d = (char *)dest;
-		s = (char *)src;
-		while (count--)
-			*d++ = *s++;        
-	}
-	else /* overlap */
-	{
-		d = (char *)(dest + count - 1); /* offset of pointer is from 0 */
-		s = (char *)(src + count -1);
-		while (count --)
-			*d-- = *s--;
-	}
-
-	return dest;
-}
-
 
 /*********************************************************
 * 函 数 名: DownloadCurrencyTemplate
@@ -696,11 +712,11 @@ int UdpFunc::DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue)
 	if (mPackCount == PackNum - 1) {
 		LastPackLen = ((recvbuf[HB_ID4] & 0xff) << 8) | (recvbuf[HB_ID5] & 0xff);
 		printf("end packlen=%d\n", LastPackLen);
-		memcpy(pGainTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, LastPackLen);
+		MyMemcpy(pGainTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, LastPackLen);
 		pGainTail += LastPackLen;
 	}	
 	else {
-		memcpy(pGainTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, TMP_BUFFER_SIZE);
+		MyMemcpy(pGainTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, TMP_BUFFER_SIZE);
 		pGainTail += TMP_BUFFER_SIZE;
 	}
 
@@ -712,25 +728,25 @@ int UdpFunc::DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue)
 		if (1 == TemplateValue) {
 			if((fp=fopen(FILE_NAME_GAIN,"wt+"))==NULL)
 			{
-				LogError("[%s:%s %u]  open </home/root/Gain.raw> file error \n", __FILE__, __func__, __LINE__);
+				LogError("[%s:%s %u]  open <%s> file error \n", __FILE__, __func__, __LINE__, FILE_NAME_GAIN);
 				free(pTemplateBuf);
 				return -1;
 			}
 			fwrite(pTemplateBuf, sizeof(UCHAR), (PackNum - 1) * TMP_BUFFER_SIZE + LastPackLen, fp);			
 			fclose(fp);
 
-			LogDebug("[%s:%s %u]  save file[/home/root/Gain.raw] successful!\n", __FILE__, __func__, __LINE__);
+			LogDebug("[%s:%s %u]  save file[%s] successful!\n", __FILE__, __func__, __LINE__, FILE_NAME_GAIN);
 		}
 		else if (2 == TemplateValue) {
 			if((fp=fopen(FILE_NAME_DEFECT,"wt+"))==NULL)
 			{
-				LogError("[%s:%s %u]  open </home/root/Defect.raw> file error \n", __FILE__, __func__, __LINE__);
+				LogError("[%s:%s %u]  open <%s> file error \n", __FILE__, __func__, __LINE__, FILE_NAME_DEFECT);
 				free(pTemplateBuf);
 				return -1;
 			}
 			fwrite(pTemplateBuf, sizeof(UCHAR), (PackNum - 1) * TMP_BUFFER_SIZE + LastPackLen, fp);			
 			fclose(fp);
-			LogDebug("[%s:%s %u]  save file[/home/root/Defect.raw] successful!\n", __FILE__, __func__, __LINE__);
+			LogDebug("[%s:%s %u]  save file[%s] successful!\n", __FILE__, __func__, __LINE__, FILE_NAME_DEFECT);
 		}
 
 		mPackCount = 0;
@@ -765,101 +781,85 @@ void UdpFunc::run()
 	while(1){
 		length = UDP_RECV((UCHAR *)recvbuf, PACKET_MAX_SIZE);
 		if (length == PC_SENDBUF_SIZE) {
-			p_bram_parameter = p_bram_tail + 0x1000;		//FPGA_ADDRESS+1000
+			m_pRecvCmd = (UCHAR *)(recvbuf + OFFSET_PACKAGE_CMD); //CMD
 
+			p_bram_parameter = p_bram_tail + 0x1000;		//FPGA_ADDRESS+1000
 			//因固件不支持memcpy（会出现Bus error），自己封装函数
 			//memcpy(p_bram_parameter, recvbuf, PC_SENDBUF_SIZE + 3); //透传1049+3个0x00,共1052;
 			//MyMemcpy(p_bram_parameter, recvbuf, PC_SENDBUF_SIZE + 3); //不能配置参数，需要每次拷贝4个字节
 
-			pTmpPara = (UINT *)p_bram_parameter;
-			pTmprecvbuf = (UINT *)recvbuf;
-			for(int i = 0; i < 1052 / 4; i++) {
-				pTmpPara[i] = pTmprecvbuf[i];
+			if ((*(m_pRecvCmd) == RECV_TYPE_ERASE_FLASH) || (*(m_pRecvCmd) == RECV_TYPE_Firmware_Update) || (*(m_pRecvCmd) == RECV_TYPE_PACKET_RETRANS) \
+				|| (*(m_pRecvCmd) == RECV_TYPE_FRAME_RETRANS) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_GAIN) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_DEFECT)) {
+				//不需要透传的命令
+			}else {
+				pTmpPara = (UINT *)p_bram_parameter;
+				pTmprecvbuf = (UINT *)recvbuf;
+				for(int i = 0; i < 1052 / 4; i++) {
+					pTmpPara[i] = pTmprecvbuf[i];
+				}
 			}
+			
 
-			m_pRecvCmd = (UCHAR *)(recvbuf + OFFSET_PACKAGE_CMD); //CMD
-
-			if ((*(m_pRecvCmd) == RECV_TYPE_Firmware_Update) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_GAIN)) {
+			if ((*(m_pRecvCmd) == RECV_TYPE_Firmware_Update) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_GAIN) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_DEFECT)) {
 				//屏蔽不必要的打印
 			}else {
 				LogDebug("[%s:%s %u]  Recv XDStatic Cmd=0x%.2x \n", __FILE__, __func__, __LINE__,  *(m_pRecvCmd));
 			}
-			
-				
-
-		//擦除frame（每次update，都会先发一次0x4f；我这里只做回应）
-			if (*(m_pRecvCmd) == RECV_TYPE_ERASE_FLASH) {
-				UploadResponseCmd(CMDD_FRAME_RETRANS);
-				//上一次update失败后，下一次需要恢复参数数据
-				mPackCount = 0;
-				if (NULL != pUpdatedata) {
-					free(pUpdatedata);
-					pUpdatedata = NULL;
-				}
-				pUpdatedata = (UCHAR *)malloc(UPDATE_DATA_BUF_SIZE);
-				memset(pUpdatedata, 0xff, UPDATE_DATA_BUF_SIZE);
-				pTail = pUpdatedata;
-			//flag	
-				mUpPackNumFlag = 0;
-				mUpSuccess = 0;	
-			}	
-		//Update FPGA File
-			if (*(m_pRecvCmd) == RECV_TYPE_Firmware_Update) {
-				if ( 0 == Update_SaveFile(recvbuf)) {
-					UploadResponseCmd(CMDD_PACKET_RETRANS);
-					if (1 == mUpSuccess) {
-						Update_FpgaFile();
-						if (NULL != pUpdatedata) {
-							free(pUpdatedata);
-							pUpdatedata = NULL;
+							
+			switch (*(m_pRecvCmd)) {
+				case RECV_TYPE_ERASE_FLASH:
+					//擦除frame（每次update，都会先发一次0x4f；我这里只做回应）
+					UploadResponseCmd(CMDD_FRAME_RETRANS);
+					//上一次update失败后，下一次需要恢复参数数据
+					mPackCount = 0;
+					if (NULL != pUpdatedata) {
+						free(pUpdatedata);
+						pUpdatedata = NULL;
+					}
+					pUpdatedata = (UCHAR *)malloc(UPDATE_DATA_BUF_SIZE);
+					memset(pUpdatedata, 0xff, UPDATE_DATA_BUF_SIZE);
+					pTail = pUpdatedata;
+					//flag	
+					mUpPackNumFlag = 0;
+					mUpSuccess = 0;	
+					break;
+				case RECV_TYPE_Firmware_Update:
+					//Update FPGA File
+					if ( 0 == Update_SaveFile(recvbuf)) {
+						UploadResponseCmd(CMDD_PACKET_RETRANS);
+						if (1 == mUpSuccess) {
+							Update_FpgaFile();
+							if (NULL != pUpdatedata) {
+								free(pUpdatedata);
+								pUpdatedata = NULL;
+							}
 						}
+					}		
+					break;
+				case RECV_TYPE_PACKET_RETRANS:
+					//丢包重传
+					PacketRetransmission(recvbuf);
+					break;
+				case RECV_TYPE_FRAME_RETRANS:
+					//整帧重传
+					FrameRetransmission();
+					break;
+				case RECV_TYPE_DOWNLOAD_GAIN:
+					//下载Gain校正模板
+					if (0 == DownloadCurrencyTemplate(recvbuf, 1)) {
+						UploadResponseCmd(CMDD_PACKET_RETRANS);			//应答信号需要确认
 					}
-				}		
-			}
-		//暂时放着，后续考虑
-		//Update Linux File
-			if (*(m_pRecvCmd) == 0x66) {
-				if ( 0 == Update_SaveFile(recvbuf)) {
-					UploadResponseCmd(CMDD_PACKET_RETRANS);
-					if (1 == mUpSuccess) {
-						Update_LinuxFile();
+					break;
+				case RECV_TYPE_DOWNLOAD_DEFECT:
+					//下载Defect校正模板
+					if (0 == DownloadCurrencyTemplate(recvbuf, 2)) {
+						UploadResponseCmd(CMDD_PACKET_RETRANS);			//应答信号需要确认
 					}
-				}		
+					break;
+				default:
+					break;
 			}
-
-		//丢包重传
-			if (*(m_pRecvCmd) == RECV_TYPE_PACKET_RETRANS) {
-				PacketRetransmission(recvbuf);
-			}
-
-		//整帧重传
-			else if (*(m_pRecvCmd) == RECV_TYPE_FRAME_RETRANS) {
-				FrameRetransmission();
-			}			
 		
-		//下载Gain校正模板
-			if (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_GAIN) {
-				if((fp=fopen(FILE_NAME_GAIN,"wt+")) == NULL)
-				{
-					LogError("[%s:%s %u]  open <%s> file error \n", __FILE__, __func__, __LINE__, FILE_NAME_GAIN);
-				}
-				fwrite(recvbuf, sizeof(UCHAR), PC_SENDBUF_SIZE, fp);			
-				fclose(fp);
-				LogDebug("[%s:%s %u]  Download <%s> Successful! \n", __FILE__, __func__, __LINE__, FILE_NAME_GAIN);
-			}
-
-		//下载Defect校正模板
-			if (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_DEFECT) {
-				if((fp=fopen(FILE_NAME_DEFECT,"wt+")) == NULL)
-				{
-					LogError("[%s:%s %u]  open <%s> file error \n", __FILE__, __func__, __LINE__, FILE_NAME_DEFECT);
-				}
-				fwrite(recvbuf, sizeof(UCHAR), PC_SENDBUF_SIZE, fp);			
-				fclose(fp);
-				LogDebug("[%s:%s %u]  Download <%s> Successful! \n", __FILE__, __func__, __LINE__, FILE_NAME_DEFECT);
-			}
-
-
 			memset(recvbuf, 0x00, PC_SENDBUF_SIZE + 3);		//用完清空
 		}
 	}
