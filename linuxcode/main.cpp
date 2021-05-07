@@ -29,6 +29,7 @@
 using namespace std; 
 
 #define BuffSize 1024
+#define CONNECT_IP 1
 
 static char const *szdstIp = "192.168.10.20";    //目标主机IP
 static char const *szsrcIp = "192.168.10.80";    //本机IP
@@ -42,7 +43,7 @@ UCHAR *pBramParameter;
 UCHAR *pBramAImage;
 UCHAR *pBramBImage;
 
-#if 0
+#if CONNECT_IP
 //udp准备
 static int UdpConnect(const char *pDstIp)
 {	
@@ -176,10 +177,11 @@ int main(int argc, char* argv[])
 	LogDebug("[%s:%s %u]  ************[[[START RUN LINUX]]]*********** \n", __FILE__, __func__, __LINE__);
 
 //udp连接
-#if 0 
+#if CONNECT_IP
 	//远程ip可能会发生变化
 	if (2 != argc) {
-		LogError("[%s:%s %u]  run failed! <demo \"DstIp\"> \n", __FILE__, __func__, __LINE__);
+		LogError("[%s:%s %u]  run failed! <%s \"DstIp\"> \n", __FILE__, __func__, __LINE__, argv[0]);
+		printf("run failed! <%s \"DstIp\"> \n", argv[0]);
 		return -1;
 	}
 	if (-1 == UdpConnect((const char *)argv[1])) {

@@ -65,7 +65,7 @@
 #define BRAM_SIZE_STATE 		4		//状态数据长度
 #define TMP_BUFFER_SIZE 		1024	//组包的数据长度（19+1024+‘\0’+6=1050）
 #define UPDATE_DATA_BUF_SIZE	1024 * 1024 * 10  //更新软件的数据存放大小
-#define Gain_Buf_SIZE			4302 * 4302 * 2
+#define Template_Buf_SIZE		1024 * 1024 * 18	//模板缓冲区大小：18M
 
 #define RECV_TYPE_PACKET_RETRANS        0x06     //数据包重传
 #define RECV_TYPE_FRAME_RETRANS         0x07     //整个数据帧重传

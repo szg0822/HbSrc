@@ -33,6 +33,7 @@ static UINT mUpSuccess = 0;			//update数据包成功的标志
 static UCHAR *pSaveRam;				//在offset固件校正时，bram C保存区缓存
 static UCHAR *pTemplateBuf = NULL;	//Gain模板指针
 static UCHAR *pGainTail;			//指向下载模板的保存数据地址
+static UINT mDownloadFlag = 0;		//下载模板标志
 
 static UINT mOffset = 0;			//offset校正模式
 static UINT mImageLen = 0;			//图像像素
@@ -675,43 +676,48 @@ void UdpFunc::Update_LinuxFile()
 *********************************************************/
 int UdpFunc::DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue)
 {
-	static UINT PackNum;
+	static UINT PackNum = 1;		//包数量
 	FILE *fp;
 	UCHAR *pRecvCmd;
 	UINT LastPackLen = 0;
+	static UINT Num = 0;			//包号
 	
 	if (NULL == recvbuf) {
 		LogError("[%s:%s %u]  recvbuf NULL \n", __FILE__, __func__, __LINE__);
 		return -1;
 	}
 
+	//用包号来判断是否第一次下载模板（重新下载模板时包号为0）
+	Num = (recvbuf[HB_ID8] & 0xff) | ((recvbuf[HB_ID9] & 0xff) << 8);
+	if (0 == Num) {
+		mDownloadFlag = 0;
+	}
+
 	//下载通用模板只进来一次
-	if (mUpPackNumFlag == 0) {
+	if (mDownloadFlag == 0) {
 		if (NULL != pTemplateBuf) {
 			free(pTemplateBuf);
 			pTemplateBuf = NULL;
 		}
 			
-		pTemplateBuf = (UCHAR *)malloc(Gain_Buf_SIZE);
+		pTemplateBuf = (UCHAR *)malloc(Template_Buf_SIZE);
 		if (NULL == pTemplateBuf) {
 			LogError("[%s:%s %u]  malloc pTemplateBuf NULL \n", __FILE__, __func__, __LINE__);
 			return -2;
 		}
 
-		memset(pTemplateBuf, 0, Gain_Buf_SIZE);
+		memset(pTemplateBuf, 0, Template_Buf_SIZE);
 		pGainTail = pTemplateBuf;
 		mPackCount = 0;
 		pRecvCmd = (UCHAR *)(recvbuf + OFFSET_PACKAGE_CMD);
 		LogDebug("[%s:%s %u]  Recv XDStatic Cmd=0x%.2x \n", __FILE__, __func__, __LINE__,  *(pRecvCmd));
-		PackNum = mImageLen / 512;
-
+		PackNum = (recvbuf[HB_ID6] & 0xff) | ((recvbuf[HB_ID7] & 0xff) << 8);
 		LogDebug("[%s:%s %u]  Total_PackNum = %d\n", __FILE__, __func__, __LINE__, PackNum);
-		mUpPackNumFlag = 1;
+		mDownloadFlag = 1;
 	}
 
 	if (mPackCount == PackNum - 1) {
-		LastPackLen = ((recvbuf[HB_ID4] & 0xff) << 8) | (recvbuf[HB_ID5] & 0xff);
-		printf("end packlen=%d\n", LastPackLen);
+		LastPackLen = (recvbuf[HB_ID4] & 0xff) | ((recvbuf[HB_ID5] & 0xff) << 8);
 		MyMemcpy(pGainTail, recvbuf + OFFSET_PACKAGE_IMAGESLICE, LastPackLen);
 		pGainTail += LastPackLen;
 	}	
@@ -750,7 +756,9 @@ int UdpFunc::DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue)
 		}
 
 		mPackCount = 0;
+		mDownloadFlag = 0;
 		free(pTemplateBuf);
+		pTemplateBuf = NULL;
 	}
 	return 0;
 }
@@ -847,13 +855,13 @@ void UdpFunc::run()
 				case RECV_TYPE_DOWNLOAD_GAIN:
 					//下载Gain校正模板
 					if (0 == DownloadCurrencyTemplate(recvbuf, 1)) {
-						UploadResponseCmd(CMDD_PACKET_RETRANS);			//应答信号需要确认
+						UploadResponseCmd(CMDD_PACKET_RETRANS);			
 					}
 					break;
 				case RECV_TYPE_DOWNLOAD_DEFECT:
 					//下载Defect校正模板
 					if (0 == DownloadCurrencyTemplate(recvbuf, 2)) {
-						UploadResponseCmd(CMDD_PACKET_RETRANS);			//应答信号需要确认
+						UploadResponseCmd(CMDD_PACKET_RETRANS);			
 					}
 					break;
 				default:
