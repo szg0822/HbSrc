@@ -29,10 +29,10 @@
 using namespace std; 
 
 #define BuffSize 1024
-#define CONNECT_IP 0
+#define CONNECT_IP 1
 
-static char const *szdstIp = "192.168.10.20";    //目标主机IP
-static char const *szsrcIp = "192.168.10.80";    //本机IP
+//static char const *szdstIp = "192.168.10.23";    //目标主机IP
+//static char const *szsrcIp = "192.168.10.80";    //本机IP
 UdpFunc udpfunc;//线程对象
 
 
@@ -45,17 +45,14 @@ UCHAR *pBramBImage;
 
 #if CONNECT_IP
 //udp准备
-static int UdpConnect(const char *pDstIp)
+static int UdpConnect(const char *pSrcIp)
 {	
-	//udpfunc.remotePort = 1234;
-	//udpfunc.loacalPort = 1235;
-	if (NULL == pDstIp) {
-		LogError("[%s:%s %u]  pDstIp NULL \n", __FILE__, __func__, __LINE__);
+	if (NULL == pSrcIp) {
+		LogError("[%s:%s %u]  pSrcIp NULL \n", __FILE__, __func__, __LINE__);
 		return -1;
 	}
-	//printf("dstip=%s, len=%d\n", pDstIp, strlen(pDstIp));
-	memcpy(udpfunc.remoteip,pDstIp,strlen(pDstIp));
-	memcpy(udpfunc.localip,szsrcIp,strlen(szsrcIp));
+
+	memcpy(udpfunc.localip,pSrcIp,strlen(pSrcIp));
 	if (ERR_SUCCESS != udpfunc.UDP_CREATE()) { 
 		LogError("[%s:%s %u]  UDP Connect Failed! \n", __FILE__, __func__, __LINE__);
 		udpfunc.UDP_CLOSE();
@@ -71,7 +68,7 @@ static int UdpConnect(const char *pDstIp)
 static int UdpConnect()
 {	
 	//memcpy(udpfunc.remoteip,szdstIp,strlen(szdstIp));
-	memcpy(udpfunc.localip,szsrcIp,strlen(szsrcIp));
+	//memcpy(udpfunc.localip,szsrcIp,strlen(szsrcIp));
 
 	if (ERR_SUCCESS != udpfunc.UDP_CREATE()) { 
 		LogError("[%s:%s %u]  UDP Connect Failed! \n", __FILE__, __func__, __LINE__);
@@ -180,8 +177,8 @@ int main(int argc, char* argv[])
 #if CONNECT_IP
 	//远程ip可能会发生变化
 	if (2 != argc) {
-		LogError("[%s:%s %u]  run failed! <%s \"DstIp\"> \n", __FILE__, __func__, __LINE__, argv[0]);
-		printf("run failed! <%s \"DstIp\"> \n", argv[0]);
+		LogError("[%s:%s %u]  run failed! <%s \"SrcIp\"> \n", __FILE__, __func__, __LINE__, argv[0]);
+		printf("run failed! <%s \"SrcIp\"> \n", argv[0]);
 		return -1;
 	}
 	if (-1 == UdpConnect((const char *)argv[1])) {

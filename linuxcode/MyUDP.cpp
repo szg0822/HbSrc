@@ -57,11 +57,6 @@ int MyUDP::UDP_CREATE(void)
 		return ERR_WSAERROR;
 	}
 
-	memset(&dstAddr, 0, sizeof(dstAddr));
-	dstAddr.sin_family = AF_INET;
-	dstAddr.sin_addr.s_addr = inet_addr(remoteip);
-	dstAddr.sin_port = htons(remotePort);
-
 	memset(&srcAddr, 0, sizeof(srcAddr));//初始化addr
 	srcAddr.sin_family = AF_INET;
 	srcAddr.sin_port = htons(loacalPort);
@@ -73,12 +68,13 @@ int MyUDP::UDP_CREATE(void)
 	else{
 		srcAddr.sin_addr.s_addr = inet_addr(localip);
 	}
+
 #if 0
 	bool bReuseaddr = true;
 	setsockopt(m_udpfd, SOL_SOCKET, SO_REUSEADDR, (char*)&bReuseaddr, sizeof(bReuseaddr));
 #endif
 
-	LogDebug("[%s:%s %u]  remoteip=[%s],remoteport=[%d], localip=[%s],locaport=[%d] \n", __FILE__, __func__, __LINE__, remoteip, remotePort, localip, loacalPort);
+	LogDebug("[%s:%s %u]  localip=[%s],locaport=[%d] \n", __FILE__, __func__, __LINE__, localip, loacalPort);
 	// 设置接收缓冲区
 	int optVal = 2000 * 2048;// 4M socket buffer
 	//int optVal = 20 * 1024 * 1024;// 20M socket buffer
@@ -185,7 +181,7 @@ int MyUDP::UDP_RECV(unsigned char *szBuff, int nSize)
 		return -1;
 	}
 
-	int getlen = sizeof(srcAddr);
+	int getlen = sizeof(dstAddr);
 	int nlen = 0;
 
 	struct timeval udp_tmvl;
@@ -207,7 +203,7 @@ int MyUDP::UDP_RECV(unsigned char *szBuff, int nSize)
 	}
 	else { // 检测到有套接口可读
 		if (FD_ISSET(m_udpfd, &rfd))  { // 可读
-			nlen = recvfrom(m_udpfd, szBuff, nSize, 0, (sockaddr *)&srcAddr,(socklen_t*) &getlen);
+			nlen = recvfrom(m_udpfd, szBuff, nSize, 0, (sockaddr *)&dstAddr,(socklen_t*) &getlen);
 			if (nlen < 0) {
 				LogError("[%s:%s %u]  recvfrom failed,because of %s \n", __FILE__, __func__, __LINE__, strerror(errno));
 				return -4;
