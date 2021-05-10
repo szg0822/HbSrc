@@ -29,7 +29,7 @@
 using namespace std; 
 
 #define BuffSize 1024
-#define CONNECT_IP 1
+#define CONNECT_IP 0
 
 static char const *szdstIp = "192.168.10.20";    //目标主机IP
 static char const *szsrcIp = "192.168.10.80";    //本机IP
@@ -70,7 +70,7 @@ static int UdpConnect(const char *pDstIp)
 //udp准备
 static int UdpConnect()
 {	
-	memcpy(udpfunc.remoteip,szdstIp,strlen(szdstIp));
+	//memcpy(udpfunc.remoteip,szdstIp,strlen(szdstIp));
 	memcpy(udpfunc.localip,szsrcIp,strlen(szsrcIp));
 
 	if (ERR_SUCCESS != udpfunc.UDP_CREATE()) { 
