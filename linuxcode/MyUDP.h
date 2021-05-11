@@ -50,7 +50,7 @@ public:
 	MyUDP();
 	virtual ~MyUDP();
 public:
-	int UDP_CREATE(void);
+	int UDP_CREATE(char *localip);
 	int UDP_CLOSE(void);
 	int UDP_SEND(unsigned char *szBuff, int nSize);
 	int UDP_RECV(unsigned char *szBuff, int nSize);

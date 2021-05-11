@@ -47,7 +47,7 @@ MyUDP::~MyUDP()
 * 返 回 值：0：创建成功；非0：创建失败	    
 * 备    注:
 *********************************************************/
-int MyUDP::UDP_CREATE(void)
+int MyUDP::UDP_CREATE(char *localip)
 {
 	//创建socket套接字
 	//if ((m_udpfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0 ) {

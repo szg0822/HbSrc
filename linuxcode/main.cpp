@@ -29,7 +29,6 @@
 using namespace std; 
 
 #define BuffSize 1024
-#define CONNECT_IP 1
 
 //static char const *szdstIp = "192.168.10.23";    //目标主机IP
 //static char const *szsrcIp = "192.168.10.80";    //本机IP
@@ -43,40 +42,19 @@ UCHAR *pBramParameter;
 UCHAR *pBramAImage;
 UCHAR *pBramBImage;
 
-#if CONNECT_IP
 //udp准备
-static int UdpConnect(const char *pSrcIp)
-{	
-	if (NULL == pSrcIp) {
-		LogError("[%s:%s %u]  pSrcIp NULL \n", __FILE__, __func__, __LINE__);
-		return -1;
-	}
-
-	memcpy(udpfunc.localip,pSrcIp,strlen(pSrcIp));
-	if (ERR_SUCCESS != udpfunc.UDP_CREATE()) { 
-		LogError("[%s:%s %u]  UDP Connect Failed! \n", __FILE__, __func__, __LINE__);
-		udpfunc.UDP_CLOSE();
-		return -1;
-	}
-	else{
-		LogDebug("[%s:%s %u]  UDP Connect Success! \n", __FILE__, __func__, __LINE__);
-	}
-	return 0;
-}        
-#endif
-//udp准备
-static int UdpConnect()
+static int UdpConnect(char *SrcIp)
 {	
 	//memcpy(udpfunc.remoteip,szdstIp,strlen(szdstIp));
 	//memcpy(udpfunc.localip,szsrcIp,strlen(szsrcIp));
 
-	if (ERR_SUCCESS != udpfunc.UDP_CREATE()) { 
-		LogError("[%s:%s %u]  UDP Connect Failed! \n", __FILE__, __func__, __LINE__);
+	if (ERR_SUCCESS != udpfunc.UDP_CREATE(SrcIp)) { 
+		LogError("[%s:%s %u]  UDP Connect Wireless Failed! \n", __FILE__, __func__, __LINE__);
 		udpfunc.UDP_CLOSE();
 		return -1;
 	}
 	else{
-		LogDebug("[%s:%s %u]  UDP Connect Success! \n", __FILE__, __func__, __LINE__);
+		LogDebug("[%s:%s %u]  UDP Connect Wireless Success! \n", __FILE__, __func__, __LINE__);
 	}
 	return 0;
 }        
@@ -174,21 +152,9 @@ int main(int argc, char* argv[])
 	LogDebug("[%s:%s %u]  ************[[[START RUN LINUX]]]*********** \n", __FILE__, __func__, __LINE__);
 
 //udp连接
-#if CONNECT_IP
-	//远程ip可能会发生变化
-	if (2 != argc) {
-		LogError("[%s:%s %u]  run failed! <%s \"SrcIp\"> \n", __FILE__, __func__, __LINE__, argv[0]);
-		printf("run failed! <%s \"SrcIp\"> \n", argv[0]);
-		return -1;
-	}
-	if (-1 == UdpConnect((const char *)argv[1])) {
-		return -1;
-	}
-#else
-	if (-1 == UdpConnect()) {
-		return -1;
-	}
-#endif 
+	//UDP无线方式
+	char SrcWirelessIp[MAX_IP_LEN] = "192.168.10.80";
+	UdpConnect(SrcWirelessIp);
 
 //将文件映射到内存	
 	if ((fd_bram = open("/dev/mem", O_RDWR | O_SYNC)) != -1) {
