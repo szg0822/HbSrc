@@ -44,7 +44,6 @@ static UCHAR * ipGainPtr = NULL;
 static UINT MGainBufFlag = 0;		//标志：申请一次地址，保存Gain校正后的数据
 static UINT MDefectBufFlag = 0;		//同上，Defect
 static UINT FileGainFlag = 0;		//Gain模板下载标志，获取一次就ok； 0：之前下载；1:刚下载;
-static UINT FileDefectFlag = 0;		//Defect，作用同上
 
 static UINT mOffset = 0;			//offset校正模式
 static UINT mImageLen = 0;			//图像像素
@@ -327,21 +326,18 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 						
 						UINT iTmp[8];						
 
-						//拷贝Gain校正模板数据
-						if (1 == FileDefectFlag) {	
-							FileDefectFlag = 0;					
-							fseek(fpFile, 0L, SEEK_END);
-							lSize = ftell(fpFile);
-							fseek(fpFile, 0L, SEEK_SET);
-							lCount = lSize / sizeof(defect_t);
-							if (NULL == Pdefect) {
-								free(Pdefect);
-								Pdefect = NULL;
-							}
-							Pdefect = (defect_t*)malloc(lSize);
-							memset(Pdefect, 0, lSize);
-							fread(Pdefect, sizeof(defect_t), lCount, fpFile);
+						//拷贝Gain校正模板数据			
+						fseek(fpFile, 0L, SEEK_END);
+						lSize = ftell(fpFile);
+						fseek(fpFile, 0L, SEEK_SET);
+						lCount = lSize / sizeof(defect_t);
+						if (NULL != Pdefect) {
+							free(Pdefect);
+							Pdefect = NULL;
 						}
+						Pdefect = (defect_t*)malloc(lSize);
+						memset(Pdefect, 0, lSize);
+						fread(Pdefect, sizeof(defect_t), lCount, fpFile);
 						fclose(fpFile);
 
 						for(int i = 0; i < lCount; i++) {
@@ -766,7 +762,6 @@ int UdpFunc::DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue)
 			fwrite(pTemplateBuf, sizeof(UCHAR), (PackNum - 1) * TMP_BUFFER_SIZE + LastPackLen, fp);			
 			fclose(fp);
 			LogDebug("[%s:%s %u]  save file[%s] successful!\n", __FILE__, __func__, __LINE__, FILE_NAME_DEFECT);
-			FileDefectFlag = 1;
 		}
 
 		mPackCount = 0;
@@ -800,22 +795,6 @@ static void UdpFuncInit()
 		fclose(fpFile);
 		FileGainFlag = 0;
 	}
-
-	fpFile = fopen(FILE_NAME_DEFECT, "r");
-	if (NULL == fpFile) {
-		LogError("[%s:%s %u]  No template downloaded (file<%s> failed!) \n", __FILE__, __func__, __LINE__, FILE_NAME_DEFECT);
-	}else {
-		fseek(fpFile, 0L, SEEK_END);
-		int lSize = ftell(fpFile);
-		fseek(fpFile, 0L, SEEK_SET);
-		int lCount = lSize / sizeof(defect_t);
-		Pdefect = (defect_t*)malloc(lSize);
-		memset(Pdefect, 0, lSize);
-		fread(Pdefect, sizeof(defect_t), lCount, fpFile);
-		fclose(fpFile);
-		FileDefectFlag = 0;
-	}
-
 }
 
 void UdpFunc::run()
