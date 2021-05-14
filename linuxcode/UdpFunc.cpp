@@ -809,10 +809,10 @@ void UdpFunc::run()
 	UINT *pTmpPara = NULL;
 	UINT *pTmprecvbuf = NULL;
 
-#if 0
+#if 1
 	//UDP连接有线
 	char SrcWriedIp[MAX_IP_LEN] = "192.168.0.40";
-	if (ERR_SUCCESS != UDP_CREATE(SrcWriedIp)) { 
+	if (ERR_SUCCESS != UDP_CREATE(SrcWriedIp, 1)) { 
 		LogError("[%s:%s %u]  UDP Connect Wired Failed! \n", __FILE__, __func__, __LINE__);
 		UDP_CLOSE();
 	}

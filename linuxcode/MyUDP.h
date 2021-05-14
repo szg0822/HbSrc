@@ -50,7 +50,7 @@ public:
 	MyUDP();
 	virtual ~MyUDP();
 public:
-	int UDP_CREATE(char *localip);
+	int UDP_CREATE(char *localip, int use);
 	int UDP_CLOSE(void);
 	int UDP_SEND(unsigned char *szBuff, int nSize);
 	int UDP_RECV(unsigned char *szBuff, int nSize);
@@ -65,6 +65,8 @@ private:
 	int  errcode;
 	char errmsg[ERR_MAXLENGTH + 1];
 	fd_set rfd;                 // 读描述符集
+
+	fd_set rfd1, rfd2;
 /*
     // timeout
 	struct timeval {
@@ -86,6 +88,9 @@ public:
 	int overtime;
 	bool bIsOpen;
 	// struct timeval udptmvl;    //超时
+
+	int Wired_fd1;
+	int Wireless_fd2;
 };
 
 #endif

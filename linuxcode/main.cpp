@@ -48,7 +48,7 @@ static int UdpConnect(char *SrcIp)
 	//memcpy(udpfunc.remoteip,szdstIp,strlen(szdstIp));
 	//memcpy(udpfunc.localip,szsrcIp,strlen(szsrcIp));
 
-	if (ERR_SUCCESS != udpfunc.UDP_CREATE(SrcIp)) { 
+	if (ERR_SUCCESS != udpfunc.UDP_CREATE(SrcIp, 2)) { 
 		LogError("[%s:%s %u]  UDP Connect Wireless Failed! \n", __FILE__, __func__, __LINE__);
 		udpfunc.UDP_CLOSE();
 		return -1;

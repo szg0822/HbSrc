@@ -9,7 +9,12 @@
 #include "MyUDP.h"
 #include "LinuxLog.h"
 
+#define FD_N	2
 
+static int Wired_ret1 = 0;
+static int Wireless_ret2 = 0;
+
+static int fd_w[FD_N] = {0, 0};
 
 MyUDP::MyUDP()
 {
@@ -43,14 +48,14 @@ MyUDP::~MyUDP()
 /*********************************************************
 * 函 数 名: UDP_CREATE
 * 功能描述: 创建UDP连接
-* 参数说明:
+* 参数说明:  localip: 本地IP
+			use 1:有线；2：无线
 * 返 回 值：0：创建成功；非0：创建失败	    
-* 备    注:
+* 备    注: 可以满足俩个socket
 *********************************************************/
-int MyUDP::UDP_CREATE(char *localip)
-{
+int MyUDP::UDP_CREATE(char *localip, int use)
+{			
 	//创建socket套接字
-	//if ((m_udpfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0 ) {
 	m_udpfd = socket(AF_INET, SOCK_DGRAM, 0);
 	if(m_udpfd < 0){
 		LogError("[%s:%s %u]  create socket failed \n", __FILE__, __func__, __LINE__);
@@ -91,6 +96,18 @@ int MyUDP::UDP_CREATE(char *localip)
 	fcntl(m_udpfd, F_SETFL, flags&~O_NONBLOCK);    //设置成阻塞模式；
 
 	bIsOpen = true;
+
+	if (1 == use) {
+		//Wired_fd1 = m_udpfd;
+		fd_w[0] = m_udpfd;
+	}
+
+		
+	else if (2 == use) {
+		//Wireless_fd2 = m_udpfd;	
+		fd_w[1] = m_udpfd;
+	}
+
 	return ERR_SUCCESS;
 }
 
@@ -105,9 +122,15 @@ int MyUDP::UDP_CLOSE(void)
 {
 	//关闭资源  
 	if (bIsOpen) {
-		if (close(m_udpfd)< 0)	{//关闭套接字 
-			LogError("[%s:%s %u]  closesocket failed \n", __FILE__, __func__, __LINE__);
-			return ERR_WSAERROR;
+		// if (Wired_ret1 > 0) 
+			// m_udpfd = Wired_fd1;
+		// else if (Wireless_ret2 > 0)
+			// m_udpfd = Wireless_fd2;
+		for (int i = 0; i < FD_N; i++) {
+			if (close(fd_w[i])< 0)	{//关闭套接字 
+				LogError("[%s:%s %u]  closesocket failed \n", __FILE__, __func__, __LINE__);
+				return ERR_WSAERROR;
+			}
 		}
 	}
 	sleep(2);
@@ -134,24 +157,29 @@ int MyUDP::UDP_SEND(unsigned char *szBuff, int nSize)
 		LogError("[%s:%s %u]  szBuff is NULL; nSize=%d \n", __FILE__, __func__, __LINE__, nSize);
 		return ERR_BADPARAM;
 	}
-
-	if (sendto(m_udpfd, szBuff, nSize, 0, (sockaddr *)&dstAddr, sizeof(struct sockaddr)) < 0) {
-		int lasterror = errno;
-		if (lasterror == EWOULDBLOCK) {
-			struct timeval timeout;
-			fd_set r;
-			FD_ZERO(&r);
-			FD_SET(m_udpfd, &r);
-			timeout.tv_sec = overtime; //连接超时2秒 
-			timeout.tv_usec = 0;
-			if (select(0, 0, &r, 0, &timeout) <= 0)
-				return ERR_WSAERROR;
+	// if (Wired_ret1 > 0) 
+		// m_udpfd = Wired_fd1;
+	// else if (Wireless_ret2 > 0)
+		// m_udpfd = Wireless_fd2;
+	for (int i = 0; i < FD_N; i++) {
+		if (sendto(fd_w[i], szBuff, nSize, 0, (sockaddr *)&dstAddr, sizeof(struct sockaddr)) < 0) {
+			int lasterror = errno;
+			if (lasterror == EWOULDBLOCK) {
+				struct timeval timeout;
+				fd_set r;
+				FD_ZERO(&r);
+				FD_SET(m_udpfd, &r);
+				timeout.tv_sec = overtime; //连接超时2秒 
+				timeout.tv_usec = 0;
+				if (select(0, 0, &r, 0, &timeout) <= 0)
+					return ERR_WSAERROR;
+				else
+					return ERR_SUCCESS;
+			}
 			else
-				return ERR_SUCCESS;
+				LogError("[%s:%s %u]  lasterror=%d \n", __FILE__, __func__, __LINE__, lasterror);
+			return ERR_WSAERROR;
 		}
-		else
-			LogError("[%s:%s %u]  lasterror=%d \n", __FILE__, __func__, __LINE__, lasterror);
-		return ERR_WSAERROR;
 	}
 
 	return ERR_SUCCESS;
@@ -171,6 +199,7 @@ int MyUDP::UDP_SEND(unsigned char *szBuff, int nSize)
 *********************************************************/
 int MyUDP::UDP_RECV(unsigned char *szBuff, int nSize)
 {
+	int ret;
 	if (!bIsOpen) {
 		LogError("[%s:%s %u]  bIsOpen is FALSE \n", __FILE__, __func__, __LINE__);
 		return 0;
@@ -189,28 +218,58 @@ int MyUDP::UDP_RECV(unsigned char *szBuff, int nSize)
 	udp_tmvl.tv_usec = 100 * 1000;
 
 	errno = 0;
-	FD_ZERO(&rfd);         // 在使用之前总是要清空
-	FD_SET(m_udpfd, &rfd);
 	
-	int ret = select((m_udpfd + 1), &rfd, NULL, NULL, &udp_tmvl);// 检测是否有套接口是否可读 准备就绪的描述符数
-	if (ret < 0) { // 出错则返回-1。
-		LogError("[%s:%s %u]  Select Failed \n", __FILE__, __func__, __LINE__);
+	FD_ZERO(&rfd);
+	FD_SET(m_udpfd, &rfd);
+
+	//监听多个Client
+	for (int i = 0; i < FD_N; i++) {
+		if (0 != fd_w[i])
+			FD_SET(fd_w[i], &rfd);
+	}
+	
+	ret = select((m_udpfd + 1), &rfd, NULL, NULL, &udp_tmvl);
+	if (ret <= 0)
+		//LogDebug("test:	调试使用\n");
 		return -2;
-	}
-	else if (ret == 0) { // 超时则返回0
-		//ErrLog("[%s][%d] UDP_RECV:%s", __FILE__, __LINE__, "timeout");
-		return -3;
-	}
-	else { // 检测到有套接口可读
-		if (FD_ISSET(m_udpfd, &rfd))  { // 可读
-			nlen = recvfrom(m_udpfd, szBuff, nSize, 0, (sockaddr *)&dstAddr,(socklen_t*) &getlen);
-			if (nlen < 0) {
-				LogError("[%s:%s %u]  recvfrom failed,because of %s \n", __FILE__, __func__, __LINE__, strerror(errno));
-				return -4;
+	else {
+		for (int i = 0; i < FD_N; i++) {
+			if (FD_ISSET(fd_w[i], &rfd)) {
+				nlen = recvfrom(fd_w[i], szBuff, nSize, 0, (sockaddr *)&dstAddr,(socklen_t*) &getlen);
 			}
 		}
-		else
-			return -5;
 	}
+/*
+	//这种方式也可以，但是会运行俩个select，不合理，上面是优化版。
+	// FD_ZERO(&rfd1);         // 在使用之前总是要清空
+	// FD_ZERO(&rfd2);    
+	// FD_SET(Wired_fd1, &rfd1);
+	// FD_SET(Wireless_fd2, &rfd2);
+
+	// Wired_ret1 = select((Wired_fd1 + 1), &rfd1, NULL, NULL, &udp_tmvl);// 检测是否有套接口是否可读 准备就绪的描述符数
+	// if (Wired_ret1 <= 0) {
+		// Wireless_ret2 = select((Wireless_fd2 + 1), &rfd2, NULL, NULL, &udp_tmvl);// 检测是否有套接口是否可读 准备就绪的描述符数
+	// }
+	
+
+	if ((Wired_ret1 <= 0) && (Wireless_ret2 <= 0)){
+		return -2;
+	}
+	else {
+		// LogDebug("test: fd1=%d, fd2=%d\n", Wired_fd1, Wireless_fd2);
+		// LogDebug("test ret1=%d, ret2=%d\n", Wired_ret1, Wireless_ret2);
+		if (Wired_ret1 > 0) 
+			m_udpfd = Wired_fd1;
+		else if (Wireless_ret2 > 0) 
+			m_udpfd = Wireless_fd2;
+		
+		nlen = recvfrom(m_udpfd, szBuff, nSize, 0, (sockaddr *)&dstAddr,(socklen_t*) &getlen);
+		if (nlen < 0) {
+			LogError("[%s:%s %u]  recvfrom failed,because of %s \n", __FILE__, __func__, __LINE__, strerror(errno));
+			return -3;
+		}
+
+	}
+*/	
 	return nlen;
 }
