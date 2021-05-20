@@ -200,7 +200,7 @@ public:
 *********************************************************/
 	int DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue);
 
-
+	void UdpFuncInit();
 
 	UCHAR *p_bram_state; 		//映射的状态数据地址
 	UCHAR *p_bram_parameter; 	//映射的参数数据地址

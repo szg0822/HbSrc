@@ -22,6 +22,9 @@
 #define BuffSize 1024
 #define TIMEOUT 2       //超时等待2秒
 
+typedef unsigned int uint_32;
+typedef unsigned short uint_16 ;  
+
 static UCHAR *pSendBuf;				//组包后临时存放的地址
 //update
 static UCHAR *pUpdatedata = NULL; 			//更新固件的保存数据地址
@@ -37,12 +40,10 @@ static UINT mDownloadFlag = 0;		//下载模板标志
 
 //必须初始化，否则free会段错误
 static UCHAR *pTmpGainBuf = NULL;
-static UCHAR *pTmpDefectBuf = NULL;
 static UCHAR * ipGainPtr = NULL;
 
 //Flag
 static UINT MGainBufFlag = 0;		//标志：申请一次地址，保存Gain校正后的数据
-static UINT MDefectBufFlag = 0;		//同上，Defect
 static UINT FileGainFlag = 0;		//Gain模板下载标志，获取一次就ok； 0：之前下载；1:刚下载;
 
 static UINT mOffset = 0;			//offset校正模式
@@ -50,13 +51,26 @@ static UINT mImageLen = 0;			//图像像素
 
 static UINT mPackCount = 0;			//UpdateFirmware 包的数量
 
-typedef struct defect {
-	unsigned x:12;
-	unsigned y:12;
-	unsigned de:8;
-}defect_t;
-static defect_t * Pdefect = NULL;
+// typedef struct defect {
+	// unsigned de:8;
+	// unsigned y:12;
+	// unsigned x:12;	
+// }defect_t;
+// static defect_t * Pdefect = NULL;
 
+//大小端转换32位
+#define BSWAP_32(x) \   
+    (uint_32)((((uint_32)(x) & 0xff000000) >> 24) | \  
+              (((uint_32)(x) & 0x00ff0000) >> 8) | \  
+              (((uint_32)(x) & 0x0000ff00) << 8) | \  
+              (((uint_32)(x) & 0x000000ff) << 24) \  
+             )  
+
+#define BSWAP_16(x) \   
+    (uint_16)((((uint_16)(x) & 0x00ff) << 8) | \  
+              (((uint_16)(x) & 0xff00) >> 8) \  
+             )  
+static uint_32 *Tdef = NULL;
 
 UdpFunc::UdpFunc()
 {}
@@ -179,6 +193,8 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	UINT PanelSize = 1;
 	UINT SV = 100;
 
+	USHORT *pTempGainBuf = NULL;
+
 	FILE * fpFile;
 	int lSize,lCount;
 
@@ -201,7 +217,8 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	UINT ImageLenBuf[2 * 8] = {3072 , 3072, 2560 , 3072, 1280 , 1024, 2048 , 2048, 2816 , 3584, 2048 , 1792, 4302 , 4302, 3072 , 3840};
 	//公式：ImageLenBuf[2*(n-1)] * ImageLenBuf[2*(n-1) + 1]
 	//x * y
-	ImageLen = ImageLenBuf[2 * PanelSize - 2] * ImageLenBuf[2 * PanelSize - 1];
+	ImageLen = ImageLenBuf[2 * PanelSize - 2] * ImageLenBuf[2 * PanelSize - 1];	
+
 
 //给丢包使用校正模式
 	mOffset = offset;	
@@ -302,6 +319,7 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 
 				pTmpGainBuf[ImageSize] = '\0';
 				pImage = pTmpGainBuf;
+				pTempGainBuf = (USHORT *)pTmpGainBuf;
 
 			//Defect模板固件校正
 				if (2 == defect) {							
@@ -313,88 +331,104 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 						//ImageLenBuf[2 * PanelSize - 2] * ImageLenBuf[2 * PanelSize - 1];
 						UINT TmpLenX = ImageLenBuf[2 * PanelSize - 2];
 						UINT TmpLenY = ImageLenBuf[2 * PanelSize - 1];
+													
+						UINT iTmp;	
+						uint_32 bswap_ret;
+						int iR = 0;
 
-						USHORT (*pTGain)[TmpLenY]=(USHORT(*)[TmpLenY])malloc(sizeof(USHORT)*ImageLen);
-						int k = 0;
-						USHORT mGain = 0;
-						for (int x = 0; x < TmpLenX; x++)
-							for (int y = 0; y < TmpLenY; y++) {
-								mGain = (pImage[k] & 0xff) | ((pImage[k+1] & 0xff) << 8);
-								pTGain[x][y] = mGain;
-								k += 2;
-							}							
-						
-						UINT iTmp[8];						
-
-						//拷贝Gain校正模板数据			
+						//拷贝Gain校正模板数据	
+								
 						fseek(fpFile, 0L, SEEK_END);
 						lSize = ftell(fpFile);
 						fseek(fpFile, 0L, SEEK_SET);
-						lCount = lSize / sizeof(defect_t);
-						if (NULL != Pdefect) {
-							free(Pdefect);
-							Pdefect = NULL;
-						}
-						Pdefect = (defect_t*)malloc(lSize);
-						memset(Pdefect, 0, lSize);
-						fread(Pdefect, sizeof(defect_t), lCount, fpFile);
-						fclose(fpFile);
+						lCount = lSize / sizeof(uint_32);
+						Tdef = (uint_32*)malloc(lSize);
+						memset(Tdef, 0, lSize);
+						fread(Tdef, sizeof(uint_32), lCount, fpFile);
+						fclose(fpFile);						 
 
+						//B5 B1 0B FF
 						for(int i = 0; i < lCount; i++) {
 							UINT count = 0;
 							UINT sum = 0;
-							int TmpJ[8];
+
+							bswap_ret = BSWAP_32(Tdef[i]);
+							int x = ((bswap_ret & 0xfff00000) >> 20);
+							int y = ((bswap_ret & 0x000fff00) >> 8);
+							int de = (bswap_ret & 0x00000ff);
+							// int x = ((Pdefect[0] & 0xff) << 4) | ((Pdefect[1] & 0xf0) >> 4);
+							// int y = ((Pdefect[1] & 0x0f) << 8) | ((Pdefect[2]) & 0xff);
+							
 							for(int j = 0; j < 8; j++) {
-								iTmp[j] = ((Pdefect[i].de >> j) & 1);
+								iTmp = ((de >> j) & 1);
 								
-								if (1 == iTmp[j]) {
+								if (1 == iTmp) {
 									count++;
 									switch (j) {
 										case 0:
-											sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y - 1];	
+											if ((x != 0) && (y != 0)) {
+												iR = (y - 1) * TmpLenX + (x - 1);
+												sum += pTempGainBuf[iR];
+												//sum += pTGain[x - 1][y - 1];	
+											}
 											break;
 										case 1:
-											sum += pTGain[Pdefect[i].x][Pdefect[i].y - 1];
+											if (y != 0) {
+												iR = (y - 1) * TmpLenX + x;
+												sum += pTempGainBuf[iR];
+											}
+												//sum += pTGain[x][y - 1];
 											break;
 										case 2:
-											sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y - 1];
+											if (y != 0) {
+												iR = (y - 1) * TmpLenX + (x + 1);
+												sum += pTempGainBuf[iR];
+											}
+												//sum += pTGain[x + 1][y - 1];
 											break;
 										case 3:
-											sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y];
+											if (x != 0) {
+												iR = y * TmpLenX + (x - 1);
+												sum += pTempGainBuf[iR];
+											}
+												//sum += pTGain[x - 1][y];
 											break;
 										case 4:
-											sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y];
+											iR = y * TmpLenX + (x + 1);
+											sum += pTempGainBuf[iR];
+											//sum += pTGain[x + 1][y];
 											break;
 										case 5:
-											sum += pTGain[Pdefect[i].x - 1][Pdefect[i].y + 1];
+											if (x != 0) {
+												iR = (y + 1) * TmpLenX + (x - 1);
+												sum += pTempGainBuf[iR];
+											}
+												//sum += pTGain[x - 1][y + 1];
 											break;
 										case 6:
-											sum += pTGain[Pdefect[i].x][Pdefect[i].y + 1];
+											iR = (y + 1) * TmpLenX + x;
+											sum += pTempGainBuf[iR];
+											//sum += pTGain[x][y + 1];
 											break;
 										case 7:
-											sum += pTGain[Pdefect[i].x + 1][Pdefect[i].y + 1];
+											iR = (y + 1) * TmpLenX + (x + 1);
+											sum += pTempGainBuf[iR];
+											//sum += pTGain[x + 1][y + 1];
 											break;
 									}	
 								}
 							}
 
-							pTGain[Pdefect[i].x][Pdefect[i].y] = sum / count;	
+							iR = y * TmpLenX + x;
+							pTempGainBuf[iR] = sum / count;
 						}
 
-						//申请Defect校正后的地址
-						if (0 == MDefectBufFlag) {
-							MDefectBufFlag = 1;
-							pTmpDefectBuf = (UCHAR *)malloc(ImageLen * 2);
+						pImage = (UCHAR *)pTempGainBuf;
+
+						if (NULL != Tdef) {
+							free(Tdef);
+							Tdef = NULL;
 						}
-						
-						memset(pTmpDefectBuf, 0, ImageLen * 2);
-						MyMemcpy(pTmpDefectBuf, (UCHAR *)pTGain, ImageLen * 2);
-
-						pTmpDefectBuf[ImageLen * 2] = '\0';
-						pImage = pTmpDefectBuf;
-
-						free(pTGain);
-						pTGain = NULL;
 					}
 				}
 			 }
@@ -402,7 +436,6 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 		}
 	}
 
-	
 	while (1)
 	{	
 		//一帧图像（3072*3072）像素点，然后除以512得出18432k，1K组一个包发送
@@ -772,8 +805,19 @@ int UdpFunc::DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue)
 	return 0;
 }
 
-static void UdpFuncInit()
+void UdpFunc::UdpFuncInit()
 {
+#if 1
+	//UDP连接有线
+	char SrcWriedIp[MAX_IP_LEN] = "192.168.0.40";
+	if (ERR_SUCCESS != UDP_CREATE(SrcWriedIp, 1)) { 
+		LogError("[%s:%s %u]  UDP Connect Wired Failed! \n", __FILE__, __func__, __LINE__);
+		UDP_CLOSE();
+	}
+	else{
+		LogDebug("[%s:%s %u]  UDP Connect Wired Success! \n", __FILE__, __func__, __LINE__);
+	}
+#endif	
 	//组包后临时存放的地址
 	pSendBuf= (UCHAR *)malloc(PACKET_MAX_SIZE + 1);
 
@@ -795,6 +839,7 @@ static void UdpFuncInit()
 		fclose(fpFile);
 		FileGainFlag = 0;
 	}
+
 }
 
 void UdpFunc::run()
@@ -809,21 +854,12 @@ void UdpFunc::run()
 	UINT *pTmpPara = NULL;
 	UINT *pTmprecvbuf = NULL;
 
-#if 1
-	//UDP连接有线
-	char SrcWriedIp[MAX_IP_LEN] = "192.168.0.40";
-	if (ERR_SUCCESS != UDP_CREATE(SrcWriedIp, 1)) { 
-		LogError("[%s:%s %u]  UDP Connect Wired Failed! \n", __FILE__, __func__, __LINE__);
-		UDP_CLOSE();
-	}
-	else{
-		LogDebug("[%s:%s %u]  UDP Connect Wired Success! \n", __FILE__, __func__, __LINE__);
-	}
-#endif	
+	UdpFuncInit();
+	
 	LogDebug("[%s:%s %u]  UdpFunc RUN \n", __FILE__, __func__, __LINE__);
 	memset(recvbuf, 0x00, PC_SENDBUF_SIZE + 3);
 
-	UdpFuncInit();
+	
 	
 	while(1){
 		length = UDP_RECV((UCHAR *)recvbuf, PACKET_MAX_SIZE);

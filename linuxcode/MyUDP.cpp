@@ -11,6 +11,9 @@
 
 #define FD_N	2
 
+//0:wired; 1:wireless
+static int use = 0;
+
 static int Wired_ret1 = 0;
 static int Wireless_ret2 = 0;
 
@@ -126,12 +129,12 @@ int MyUDP::UDP_CLOSE(void)
 			// m_udpfd = Wired_fd1;
 		// else if (Wireless_ret2 > 0)
 			// m_udpfd = Wireless_fd2;
-		for (int i = 0; i < FD_N; i++) {
-			if (close(fd_w[i])< 0)	{//关闭套接字 
-				LogError("[%s:%s %u]  closesocket failed \n", __FILE__, __func__, __LINE__);
-				return ERR_WSAERROR;
-			}
+
+		if (close(fd_w[use])< 0)	{//关闭套接字 
+			LogError("[%s:%s %u]  closesocket failed \n", __FILE__, __func__, __LINE__);
+			return ERR_WSAERROR;
 		}
+		
 	}
 	sleep(2);
 	bIsOpen = false;
@@ -148,6 +151,7 @@ int MyUDP::UDP_CLOSE(void)
 *********************************************************/
 int MyUDP::UDP_SEND(unsigned char *szBuff, int nSize)
 {
+	int u = 0;
 	if (!bIsOpen) {
 		LogError("[%s:%s %u]  bIsOpen is FALSE \n", __FILE__, __func__, __LINE__);
 		return ERR_WSAERROR;
@@ -161,25 +165,26 @@ int MyUDP::UDP_SEND(unsigned char *szBuff, int nSize)
 		// m_udpfd = Wired_fd1;
 	// else if (Wireless_ret2 > 0)
 		// m_udpfd = Wireless_fd2;
-	for (int i = 0; i < FD_N; i++) {
-		if (sendto(fd_w[i], szBuff, nSize, 0, (sockaddr *)&dstAddr, sizeof(struct sockaddr)) < 0) {
-			int lasterror = errno;
-			if (lasterror == EWOULDBLOCK) {
-				struct timeval timeout;
-				fd_set r;
-				FD_ZERO(&r);
-				FD_SET(m_udpfd, &r);
-				timeout.tv_sec = overtime; //连接超时2秒 
-				timeout.tv_usec = 0;
-				if (select(0, 0, &r, 0, &timeout) <= 0)
-					return ERR_WSAERROR;
-				else
-					return ERR_SUCCESS;
-			}
+		
+	u = use;
+
+	if (sendto(fd_w[u], szBuff, nSize, 0, (sockaddr *)&dstAddr, sizeof(struct sockaddr)) < 0) {
+		int lasterror = errno;
+		if (lasterror == EWOULDBLOCK) {
+			struct timeval timeout;
+			fd_set r;
+			FD_ZERO(&r);
+			FD_SET(m_udpfd, &r);
+			timeout.tv_sec = overtime; //连接超时2秒 
+			timeout.tv_usec = 0;
+			if (select(0, 0, &r, 0, &timeout) <= 0)
+				return ERR_WSAERROR;
 			else
-				LogError("[%s:%s %u]  lasterror=%d \n", __FILE__, __func__, __LINE__, lasterror);
-			return ERR_WSAERROR;
+				return ERR_SUCCESS;
 		}
+		else
+			LogError("[%s:%s %u]  lasterror=%d \n", __FILE__, __func__, __LINE__, lasterror);
+		return ERR_WSAERROR;
 	}
 
 	return ERR_SUCCESS;
@@ -235,7 +240,8 @@ int MyUDP::UDP_RECV(unsigned char *szBuff, int nSize)
 	else {
 		for (int i = 0; i < FD_N; i++) {
 			if (FD_ISSET(fd_w[i], &rfd)) {
-				nlen = recvfrom(fd_w[i], szBuff, nSize, 0, (sockaddr *)&dstAddr,(socklen_t*) &getlen);
+				nlen = recvfrom(fd_w[i], szBuff, nSize, 0, (sockaddr *)&dstAddr,(socklen_t*) &getlen);	
+				use = i;		
 			}
 		}
 	}
