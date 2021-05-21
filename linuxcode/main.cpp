@@ -73,6 +73,7 @@ static void UdpSend()
 
 	UCHAR tmpSVBuf[5] = {0};
 	parameter_t ParaInfo;
+	int RebootFlag = 0;			//开机FPGA会主动读取一次配置，需要屏蔽
 	
 	memset(&ParaInfo, 0, sizeof(parameter_t));
 
@@ -81,27 +82,33 @@ static void UdpSend()
 		usleep(20 * 1000); //20ms
 		switch (pBramState[0]) {
 			case 3: {
-				LogDebug("[%s:%s %u]  Recv Fpga 0x03, Parameter \n", __FILE__, __func__, __LINE__);
 				memset(pBramState, 0xff, BRAM_SIZE_STATE);
-				if (0 == udpfunc.UploadParameterData(CMDU_SYSPARA_REPORT))
-					LogDebug("[%s:%s %u]  UploadParameterData success!  \n", __FILE__, __func__, __LINE__);
+				//开机FPGA会主动读取一次配置，需要屏蔽
+				if (1 == RebootFlag) {
+					LogDebug("[%s:%s %u]  Recv Fpga 0x03, Parameter \n", __FILE__, __func__, __LINE__);
+					if (0 == udpfunc.UploadParameterData(CMDU_SYSPARA_REPORT))
+						LogDebug("[%s:%s %u]  UploadParameterData success!  \n", __FILE__, __func__, __LINE__);
 
-			//offset(1byte)		offset参数值, 0:不做offset；1：软件offset；2:固件offset
-				ParaInfo.offset = *(pBramParameter + OFFSET_PARAMETER_OFFSET); 					//取offset参数值
-			
-			//gain(1byte)		
-				ParaInfo.gain = *(pBramParameter + OFFSET_PARAMETER_GAIN); 					//取gain参数值
-			
-			//defect(1byte)		
-				ParaInfo.defect = *(pBramParameter + OFFSET_PARAMETER_DEFECT); 					//取defect参数值
+				//offset(1byte)		offset参数值, 0:不做offset；1：软件offset；2:固件offset
+					ParaInfo.offset = *(pBramParameter + OFFSET_PARAMETER_OFFSET); 					//取offset参数值
+				
+				//gain(1byte)		
+					ParaInfo.gain = *(pBramParameter + OFFSET_PARAMETER_GAIN); 					//取gain参数值
+				
+				//defect(1byte)		
+					ParaInfo.defect = *(pBramParameter + OFFSET_PARAMETER_DEFECT); 					//取defect参数值
 
-			//Saturation Value(4byte)
-				udpfunc.MyMemcpy(tmpSVBuf, (pBramParameter + OFFSET_PARAMETER_SATURATION_VALUE), 4);
-				ParaInfo.SaturationV = tmpSVBuf[0] << 24 | tmpSVBuf[1] << 16 | tmpSVBuf[2] << 8 | tmpSVBuf[3];
+				//Saturation Value(4byte)
+					udpfunc.MyMemcpy(tmpSVBuf, (pBramParameter + OFFSET_PARAMETER_SATURATION_VALUE), 4);
+					ParaInfo.SaturationV = tmpSVBuf[0] << 24 | tmpSVBuf[1] << 16 | tmpSVBuf[2] << 8 | tmpSVBuf[3];
 
-			//Panel_Size(平板像素大小的选择)
-				ParaInfo.PanelSize = *(pBramParameter + OFFSET_PARAMETER_PANELSIZE);
-
+				//Panel_Size(平板像素大小的选择)
+					ParaInfo.PanelSize = *(pBramParameter + OFFSET_PARAMETER_PANELSIZE);
+				}
+				else if (0 == RebootFlag) {
+					LogDebug("[%s:%s %u]  Recv Fpga 0x03, reboot don't do it\n", __FILE__, __func__, __LINE__);
+					RebootFlag = 1;
+				}
 				break;
 			}
 			case 4: {
