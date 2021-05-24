@@ -353,66 +353,86 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 							UINT sum = 0;
 
 							bswap_ret = BSWAP_32(Tdef[i]);
+							//12+12+8位
 							int x = ((bswap_ret & 0xfff00000) >> 20);
 							int y = ((bswap_ret & 0x000fff00) >> 8);
 							int de = (bswap_ret & 0x00000ff);
 							// int x = ((Pdefect[0] & 0xff) << 4) | ((Pdefect[1] & 0xf0) >> 4);
 							// int y = ((Pdefect[1] & 0x0f) << 8) | ((Pdefect[2]) & 0xff);
-							
+
+							/*排列顺序
+								0==3==5
+								1==X==6
+								2==4==7	
+							*/
 							for(int j = 0; j < 8; j++) {
 								iTmp = ((de >> j) & 1);
 								
 								if (1 == iTmp) {
-									count++;
+									//count++;		//即使为1，可能不存在这个点或不用这个点
 									switch (j) {
 										case 0:
 											if ((x != 0) && (y != 0)) {
 												iR = (y - 1) * TmpLenX + (x - 1);
 												sum += pTempGainBuf[iR];
+												count++;
 												//sum += pTGain[x - 1][y - 1];	
 											}
 											break;
 										case 1:
-											if (y != 0) {
-												iR = (y - 1) * TmpLenX + x;
-												sum += pTempGainBuf[iR];
-											}
-												//sum += pTGain[x][y - 1];
-											break;
-										case 2:
-											if (y != 0) {
-												iR = (y - 1) * TmpLenX + (x + 1);
-												sum += pTempGainBuf[iR];
-											}
-												//sum += pTGain[x + 1][y - 1];
-											break;
-										case 3:
 											if (x != 0) {
 												iR = y * TmpLenX + (x - 1);
 												sum += pTempGainBuf[iR];
+												count++;
 											}
-												//sum += pTGain[x - 1][y];
+											//sum += pTGain[x - 1][y];
 											break;
-										case 4:
-											iR = y * TmpLenX + (x + 1);
-											sum += pTempGainBuf[iR];
-											//sum += pTGain[x + 1][y];
-											break;
-										case 5:
-											if (x != 0) {
+										case 2:
+											if ((x != 0) && (y != 3071)) {
 												iR = (y + 1) * TmpLenX + (x - 1);
 												sum += pTempGainBuf[iR];
+												count++;
 											}
-												//sum += pTGain[x - 1][y + 1];
+												//sum += pTGain[x - 1][y + 1];										
+											break;
+										case 3:
+											if (y != 0) {
+												iR = (y - 1) * TmpLenX + x;
+												sum += pTempGainBuf[iR];
+												count++;
+											}
+											//sum += pTGain[x][y - 1];								
+											break;
+										case 4:
+											if (y != 3071) {
+												iR = (y + 1) * TmpLenX + x;
+												sum += pTempGainBuf[iR];
+												count++;
+											}
+											//sum += pTGain[x][y + 1];										
+											break;
+										case 5:
+											if ((y != 0) && (x != 3071)) {
+												iR = (y - 1) * TmpLenX + (x + 1);
+												sum += pTempGainBuf[iR];
+												count++;
+											}
+												//sum += pTGain[x + 1][y - 1];										
 											break;
 										case 6:
-											iR = (y + 1) * TmpLenX + x;
-											sum += pTempGainBuf[iR];
-											//sum += pTGain[x][y + 1];
+											if (x != 3071) {
+												iR = y * TmpLenX + (x + 1);
+												sum += pTempGainBuf[iR];
+												count++;
+											}
+											//sum += pTGain[x + 1][y];											
 											break;
 										case 7:
-											iR = (y + 1) * TmpLenX + (x + 1);
-											sum += pTempGainBuf[iR];
+											if ((x != 3071) && (y != 3071)) {
+												iR = (y + 1) * TmpLenX + (x + 1);
+												sum += pTempGainBuf[iR];
+												count++;
+											}
 											//sum += pTGain[x + 1][y + 1];
 											break;
 									}	
@@ -421,6 +441,8 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 
 							iR = y * TmpLenX + x;
 							pTempGainBuf[iR] = sum / count;
+
+							//LogError("test1:sum=%d, count=%d, defect[%d][%d]=%d, de=0x%x\n", sum,count,x,y,pTempGainBuf[iR], de);
 						}
 
 						pImage = (UCHAR *)pTempGainBuf;
