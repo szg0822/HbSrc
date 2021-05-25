@@ -112,6 +112,7 @@ typedef struct ParameterInfo
 
 #define FILE_NAME_GAIN 			"/home/root/szg/gain.raw"
 #define FILE_NAME_DEFECT 		"/home/root/szg/defect.dld"
+#define RAW_IMAGE_PATH			"/home/root/szg/raw/"
 
 class UdpFunc:public Thread,public MyUDP
 {
@@ -190,17 +191,26 @@ public:
 	//因固件不支持memcpy（会出现Bus error），自己封装函数
 	void * MyMemcpy(void *dest, const void *src, size_t count);
 
-/*********************************************************
-* 函 数 名: DownloadCurrencyTemplate
-* 功能描述: 下载通用校正模板
-* 参数说明:	recvbuf：接收的每包校正模板数据
-		   TemplateValue：1，Gain模板；2，Defect模板
-* 返 回 值：0：成功；    
-* 备    注: 
-*********************************************************/
+	/*********************************************************
+	* 函 数 名: DownloadCurrencyTemplate
+	* 功能描述: 下载通用校正模板
+	* 参数说明:	recvbuf：接收的每包校正模板数据
+			TemplateValue：1，Gain模板；2，Defect模板
+	* 返 回 值：0：成功；    
+	* 备    注: 
+	*********************************************************/
 	int DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue);
 
 	void UdpFuncInit();
+
+	/*********************************************************
+	* 函 数 名: SaveImageData
+	* 功能描述: 保存图像数据
+	* 参数说明: pImage：图像数据					
+	* 返 回 值：
+	* 备    注:
+	*********************************************************/
+	int SaveImageData(UCHAR *pImage, int ImageSize);
 
 	UCHAR *p_bram_state; 		//映射的状态数据地址
 	UCHAR *p_bram_parameter; 	//映射的参数数据地址

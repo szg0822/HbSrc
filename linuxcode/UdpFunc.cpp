@@ -33,10 +33,11 @@ static UINT mUpPackNumFlag = 0;		//update数据包的个数只需要获取一次
 static UINT mUpSuccess = 0;			//update数据包成功的标志
 
 //校正模板
-static UCHAR *pSaveRam;				//在offset固件校正时，bram C保存区缓存
+static UCHAR *pSaveRam = NULL;				//在offset固件校正时，bram C保存区缓存
 static UCHAR *pTemplateBuf = NULL;	//Gain模板指针
 static UCHAR *pGainTail;			//指向下载模板的保存数据地址
 static UINT mDownloadFlag = 0;		//下载模板标志
+static UCHAR *pSaveImage = NULL;	//保存的图像数据
 
 //必须初始化，否则free会段错误
 static UCHAR *pTmpGainBuf = NULL;
@@ -45,6 +46,8 @@ static UCHAR * ipGainPtr = NULL;
 //Flag
 static UINT MGainBufFlag = 0;		//标志：申请一次地址，保存Gain校正后的数据
 static UINT FileGainFlag = 0;		//Gain模板下载标志，获取一次就ok； 0：之前下载；1:刚下载;
+static UINT MOffsetFlag = 0;
+static UINT mSaveImageNum = 0;		//保存图像数量
 
 static UINT mOffset = 0;			//offset校正模式
 static UINT mImageLen = 0;			//图像像素
@@ -170,6 +173,38 @@ int UdpFunc::UploadParameterData(TCmdID cmdID)
 	return 0;
 }
 
+/*********************************************************
+* 函 数 名: SaveImageData
+* 功能描述: 保存图像数据
+* 参数说明: pImage：图像数据					
+* 返 回 值：
+* 备    注:
+*********************************************************/
+int UdpFunc::SaveImageData(UCHAR *pImage, int ImageSize)
+{
+	FILE *fp;
+	char Nbuf[50];
+	UINT *pSaveBuf = NULL;
+	if (NULL == pImage) {
+		LogError("[%s:%s %u]=== pImage NULL\n", __FILE__, __func__, __LINE__);
+		return -1;
+	}
+
+	pSaveBuf = (UINT *)pImage;
+
+	mSaveImageNum++;
+	sprintf(Nbuf, RAW_IMAGE_PATH"Image%05d.raw", mSaveImageNum);
+
+	if((fp=fopen(Nbuf,"wt+"))==NULL)
+	{
+		//LogError("[%s:%s %u]  open <%s> file error \n", __FILE__, __func__, __LINE__, FILE_NAME_DEFECT);
+		return -2;
+	}
+	fwrite(pSaveBuf, sizeof(UINT), ImageSize / 4, fp);			
+	fclose(fp);
+
+	return 0;
+}
 
 /*********************************************************
 * 函 数 名: UploadImageData
@@ -192,13 +227,12 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	UINT defect = 0;
 	UINT PanelSize = 1;
 	UINT SV = 100;
+	int m_ret = 0;
 
 	USHORT *pTempGainBuf = NULL;
 
 	FILE * fpFile;
 	int lSize,lCount;
-
-	memset(pSaveRam, 0x00, BRAM_SIZE_IMAGE);
 
 	offset = ParaInfo.offset;
 	gain = ParaInfo.gain;
@@ -218,7 +252,7 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	//公式：ImageLenBuf[2*(n-1)] * ImageLenBuf[2*(n-1) + 1]
 	//x * y
 	ImageLen = ImageLenBuf[2 * PanelSize - 2] * ImageLenBuf[2 * PanelSize - 1];	
-
+	int ImageSize = ImageLen * 2;
 
 //给丢包使用校正模式
 	mOffset = offset;	
@@ -239,6 +273,12 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 		//俩帧合为一帧
 		int j = 0;
 		USHORT C2;
+
+		if (0 == MOffsetFlag) {
+			MOffsetFlag = 1;
+			pSaveRam = (UCHAR *)malloc(ImageSize); //在offset固件校正时，bram C保存区缓存
+		}
+		memset(pSaveRam, 0x00, ImageSize);
 		USHORT *TmpA = (USHORT *)p_bramA_image;
 		USHORT *TmpB = (USHORT *)p_bramB_image;
 
@@ -273,7 +313,6 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 				LogError("[%s:%s %u]  No template downloaded (file<%s> failed!) \n", __FILE__, __func__, __LINE__, FILE_NAME_GAIN);
 			}
 			else {
-				int ImageSize = ImageLen * 2;
 				USHORT TMP_Gain = 0;
 				int j = 0;
 				USHORT GainT = 0;
@@ -457,7 +496,15 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 			
 		}
 	}
+	//最终生成的数据
+	pSaveImage = pImage;
 
+/*
+	m_ret = SaveImageData(pSaveImage, ImageSize);
+	if (0 != m_ret) {
+		LogError("[%s:%s %u]=== SaveImageData error! ret=%d\n", __FILE__, __func__, __LINE__, m_ret);
+	}
+*/
 	while (1)
 	{	
 		//一帧图像（3072*3072）像素点，然后除以512得出18432k，1K组一个包发送
@@ -532,14 +579,8 @@ void UdpFunc::PacketRetransmission(UCHAR *recvbuf)
 		LogError("[%s:%s %u]  recvbuf NULL \n", __FILE__, __func__, __LINE__);
 		return;
 	}
-	if (0 == mOffset) {
-		TmpBram = p_bramA_image;
-	}
-	else if (2 == mOffset) {
-		TmpBram = pSaveRam;
-	}
-	else
-		TmpBram = p_bramA_image;
+	//丢包数据
+	TmpBram = pSaveImage;
 
 	//丢包的数量
 	PackNum = (recvbuf[HB_ID8] & 0xff) | ((recvbuf[HB_ID9] & 0xff) << 8);		//低高
@@ -593,14 +634,8 @@ void UdpFunc::FrameRetransmission()
 	UCHAR *pImage;
 
 	LogDebug("[%s:%s %u]  Start Frame Retransmission \n", __FILE__, __func__, __LINE__);
-	if (0 == mOffset) {
-		TmpBram = p_bramA_image;
-	}
-	else if ( 2 == mOffset) {
-		TmpBram = pSaveRam;
-	}
-	else
-		TmpBram = p_bramA_image;
+	//丢帧数据
+	TmpBram = pSaveImage;
 
 	while (1)
 	{	
@@ -843,8 +878,8 @@ void UdpFunc::UdpFuncInit()
 	//组包后临时存放的地址
 	pSendBuf= (UCHAR *)malloc(PACKET_MAX_SIZE + 1);
 
-	pSaveRam = (UCHAR *)malloc(BRAM_SIZE_IMAGE); //在offset固件校正时，bram C保存区缓存
-	memset(pSaveRam, 0x00, BRAM_SIZE_IMAGE);
+	pSaveImage = (UCHAR *)malloc(BRAM_SIZE_IMAGE);	//最终保存的图片数据
+	memset(pSaveImage, 0x00, BRAM_SIZE_IMAGE);
 
 	//开机第一次fread时间长，需提前获取
 	FILE *fpFile; 
@@ -973,11 +1008,6 @@ void UdpFunc::run()
 	if (NULL != pSendBuf) {
 		free(pSendBuf);
 		pSendBuf = NULL;
-	}
-
-	if (NULL != pSaveRam) {
-		free(pSaveRam);
-		pSaveRam = NULL;
 	}
 
 	if (NULL != pUpdatedata) {
