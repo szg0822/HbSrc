@@ -387,11 +387,12 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 						fclose(fpFile);						 
 
 						//B5 B1 0B FF
-						for(int i = 0; i < lCount; i++) {
-							UINT count = 0;
+						int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+						for(int a = 0; a < lCount; a++) {
+							UINT count = 0; //正常像素点个数
 							UINT sum = 0;
 
-							bswap_ret = BSWAP_32(Tdef[i]);
+							bswap_ret = BSWAP_32(Tdef[a]);
 							//12+12+8位
 							int x = ((bswap_ret & 0xfff00000) >> 20);
 							int y = ((bswap_ret & 0x000fff00) >> 8);
@@ -404,84 +405,41 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 								1==X==6
 								2==4==7	
 							*/
-							for(int j = 0; j < 8; j++) {
-								iTmp = ((de >> j) & 1);
-								
-								if (1 == iTmp) {
-									//count++;		//即使为1，可能不存在这个点或不用这个点
-									switch (j) {
-										case 0:
-											if ((x != 0) && (y != 0)) {
-												iR = (y - 1) * TmpLenX + (x - 1);
-												sum += pTempGainBuf[iR];
-												count++;
-												//sum += pTGain[x - 1][y - 1];	
-											}
-											break;
-										case 1:
-											if (x != 0) {
-												iR = y * TmpLenX + (x - 1);
-												sum += pTempGainBuf[iR];
-												count++;
-											}
-											//sum += pTGain[x - 1][y];
-											break;
-										case 2:
-											if ((x != 0) && (y != 3071)) {
-												iR = (y + 1) * TmpLenX + (x - 1);
-												sum += pTempGainBuf[iR];
-												count++;
-											}
-												//sum += pTGain[x - 1][y + 1];										
-											break;
-										case 3:
-											if (y != 0) {
-												iR = (y - 1) * TmpLenX + x;
-												sum += pTempGainBuf[iR];
-												count++;
-											}
-											//sum += pTGain[x][y - 1];								
-											break;
-										case 4:
-											if (y != 3071) {
-												iR = (y + 1) * TmpLenX + x;
-												sum += pTempGainBuf[iR];
-												count++;
-											}
-											//sum += pTGain[x][y + 1];										
-											break;
-										case 5:
-											if ((y != 0) && (x != 3071)) {
-												iR = (y - 1) * TmpLenX + (x + 1);
-												sum += pTempGainBuf[iR];
-												count++;
-											}
-												//sum += pTGain[x + 1][y - 1];										
-											break;
-										case 6:
-											if (x != 3071) {
-												iR = y * TmpLenX + (x + 1);
-												sum += pTempGainBuf[iR];
-												count++;
-											}
-											//sum += pTGain[x + 1][y];											
-											break;
-										case 7:
-											if ((x != 3071) && (y != 3071)) {
-												iR = (y + 1) * TmpLenX + (x + 1);
-												sum += pTempGainBuf[iR];
-												count++;
-											}
-											//sum += pTGain[x + 1][y + 1];
-											break;
-									}	
+
+							//获取正常点坐标
+							int pos = 7;	//移位计数
+
+							x1 = x + 1;
+							x2 = x - 1;
+							y1 = y + 1; 
+							y2 = y - 1;
+
+							//去除超界的点
+							if (x1 > TmpLenX - 1) x1 =  TmpLenX - 1;
+							if (x2 < 0) x2 = 0;
+							if (y1 > TmpLenY - 1) y1 =  TmpLenY - 1;
+							if (y2 < 0) y2 = 0;
+
+							for (int i = x1; i >= x2; i--) {
+								for (int j = y1; j >= y2; j--) {
+									//中心不运算
+									if (i == x && j == y)
+										continue;
+									//正常像素点计数
+									if (0 != ((1 << pos) & de)) {
+										count++;
+										iR = j * TmpLenX + i;
+										sum += pTempGainBuf[iR];
+									}
+									pos--;
 								}
 							}
-
-							iR = y * TmpLenX + x;
-							pTempGainBuf[iR] = sum / count;
-
-							//LogError("test1:sum=%d, count=%d, defect[%d][%d]=%d, de=0x%x\n", sum,count,x,y,pTempGainBuf[iR], de);
+							if (count > 0) {
+								iR = y * TmpLenX + x;
+								pTempGainBuf[iR] = sum / count;
+							}
+							
+								//LogError("test1:sum=%d, count=%d, defect[%d][%d]=%d, de=0x%x\n", sum,count,x,y,pTempGainBuf[iR], de);
 						}
 
 						pImage = (UCHAR *)pTempGainBuf;
