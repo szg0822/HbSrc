@@ -54,6 +54,8 @@ static UINT mImageLen = 0;			//图像像素
 
 static UINT mPackCount = 0;			//UpdateFirmware 包的数量
 
+static UINT mFrameNum = 0;			//帧号，图片数量
+
 // typedef struct defect {
 	// unsigned de:8;
 	// unsigned y:12;
@@ -430,7 +432,7 @@ UCHAR *UdpFunc::CorrectionDefect(UCHAR * pImage, UINT *ImageLenBuf, UINT PanelSi
 int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 {
 	UINT len = 0;
-	USHORT packageNo = 0;		//包号
+	UINT packageNo = 0;		//包号
 	UCHAR *pImage = NULL;
 	UINT ImageLen = 0;			//像素值，2个字节一个像素点
 	UINT offset = 0;
@@ -507,14 +509,15 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 		}				
 	}
 	//最终生成的数据
-	pSaveImage = pImage;
-
+	pSaveImage = pImage;	
+	mFrameNum++;		//帧号
 /*
 	m_ret = SaveImageData(pSaveImage, ImageSize);
 	if (0 != m_ret) {
 		LogError("[%s:%s %u]=== SaveImageData error! ret=%d\n", __FILE__, __func__, __LINE__, m_ret);
 	}
 */
+	
 	while (1)
 	{	
 		//一帧图像（3072*3072）像素点，然后除以512得出18432k，1K组一个包发送
@@ -523,6 +526,11 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 		}
 		
 		CreateCmd(cmdID, NULL);
+		//帧号
+		pSendBuf[HB_ID1] = (mFrameNum ) & 0xff;
+		pSendBuf[HB_ID2] = (mFrameNum >> 8) & 0xff;
+		pSendBuf[HB_ID3] = (mFrameNum >> 16) & 0xff;
+		//包号
 		pSendBuf[HB_ID7] = (packageNo ) & 0xff;
 		pSendBuf[HB_ID8] = (packageNo >> 8) & 0xff;
 		pSendBuf[HB_ID9] = (packageNo >> 16) & 0xff;
@@ -580,7 +588,7 @@ void UdpFunc::PacketRetransmission(UCHAR *recvbuf)
 {
 	UCHAR *TmpBram;
 	USHORT PackNum = 0;		//丢包的数量
-	USHORT PackId;		//包号
+	UINT PackId;		//包号
 	USHORT len = 0;
 	LogDebug("[%s:%s %u]  Start Packet Retransmission \n", __FILE__, __func__, __LINE__);
 	UINT count = 0;
@@ -618,6 +626,11 @@ void UdpFunc::PacketRetransmission(UCHAR *recvbuf)
 		TmpBram += len;
 
 		CreateCmd(CMDU_UPLOAD_IMAGE_RETRANS,  NULL);		//修改丢包重传是0x5B
+		//帧号
+		pSendBuf[HB_ID1] = (mFrameNum ) & 0xff;
+		pSendBuf[HB_ID2] = (mFrameNum >> 8) & 0xff;
+		pSendBuf[HB_ID3] = (mFrameNum >> 16) & 0xff;
+		//包号		
 		pSendBuf[HB_ID7] = (PackId ) & 0xff;
 		pSendBuf[HB_ID8] = (PackId >> 8) & 0xff;
 		pSendBuf[HB_ID9] = (PackId >> 16) & 0xff;
@@ -640,7 +653,7 @@ void UdpFunc::PacketRetransmission(UCHAR *recvbuf)
 void UdpFunc::FrameRetransmission()
 {
 	UCHAR *TmpBram;
-	USHORT packageNo = 0;
+	UINT packageNo = 0;
 	UCHAR *pImage;
 
 	LogDebug("[%s:%s %u]  Start Frame Retransmission \n", __FILE__, __func__, __LINE__);
@@ -654,6 +667,11 @@ void UdpFunc::FrameRetransmission()
 			break;
 		}
 		CreateCmd(CMDU_UPLOAD_IMAGE_RETRANS, NULL);
+		//帧号
+		pSendBuf[HB_ID1] = (mFrameNum ) & 0xff;
+		pSendBuf[HB_ID2] = (mFrameNum >> 8) & 0xff;
+		pSendBuf[HB_ID3] = (mFrameNum >> 16) & 0xff;
+		//包号
 		pSendBuf[HB_ID7] = (packageNo ) & 0xff;
 		pSendBuf[HB_ID8] = (packageNo >> 8) & 0xff;
 		pSendBuf[HB_ID9] = (packageNo >> 16) & 0xff;

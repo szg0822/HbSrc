@@ -31,6 +31,8 @@
 #define OFFSET_PARAMETER_DEFECT	      			373
 
 //HB协议ID
+#define HB_ID1		10
+#define HB_ID2		11
 #define HB_ID3		12
 #define HB_ID4		13
 #define HB_ID5		14
