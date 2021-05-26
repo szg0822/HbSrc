@@ -47,14 +47,17 @@ static uint_16 * ipGainPtr = NULL;
 static UINT MGainBufFlag = 0;		//标志：申请一次地址，保存Gain校正后的数据
 static UINT FileGainFlag = 0;		//Gain模板下载标志，获取一次就ok； 0：之前下载；1:刚下载;
 static UINT MOffsetFlag = 0;
-static UINT mSaveImageNum = 0;		//保存图像数量
 
 static UINT mOffset = 0;			//offset校正模式
 static UINT mImageLen = 0;			//图像像素
 
 static UINT mPackCount = 0;			//UpdateFirmware 包的数量
 
+//图像存储EMMC
 static UINT mFrameNum = 0;			//帧号，图片数量
+static UINT mReadNum = 0;			//读取EMMC图像数量
+static UINT mFrameImageFlag = 0;	//是否读取完成；1：完成
+static int m_FrameCount = 0;		//存储在环境变量里的图像数量
 
 // typedef struct defect {
 	// unsigned de:8;
@@ -178,14 +181,18 @@ int UdpFunc::UploadParameterData(TCmdID cmdID)
 /*********************************************************
 * 函 数 名: SaveImageData
 * 功能描述: 保存图像数据
-* 参数说明: pImage：图像数据					
-* 返 回 值：
+* 参数说明: pImage：图像数据	
+*		   ImageSize:数据大小
+*		   FrameNum：帧号
+* 返 回 值：0：成功；!0：失败
 * 备    注:
 *********************************************************/
-int UdpFunc::SaveImageData(UCHAR *pImage, int ImageSize)
+int UdpFunc::SaveImageData(UCHAR *pImage, int ImageSize, UINT FrameNum)
 {
 	FILE *fp;
-	char Nbuf[50];
+	char mBuf[50];
+
+	char Nbuf[50] = {'\0'};
 	UINT *pSaveBuf = NULL;
 	if (NULL == pImage) {
 		LogError("[%s:%s %u]=== pImage NULL\n", __FILE__, __func__, __LINE__);
@@ -194,18 +201,59 @@ int UdpFunc::SaveImageData(UCHAR *pImage, int ImageSize)
 
 	pSaveBuf = (UINT *)pImage;
 
-	mSaveImageNum++;
-	sprintf(Nbuf, RAW_IMAGE_PATH"Image%05d.raw", mSaveImageNum);
+	sprintf(Nbuf, RAW_IMAGE_PATH"Image%d.raw", FrameNum);
+	//把图像数量保存到环境变量
+	sprintf(mBuf, "HBFrameNum=%d", FrameNum + 1);
+	putenv(mBuf);
 
 	if((fp=fopen(Nbuf,"wt+"))==NULL)
 	{
-		//LogError("[%s:%s %u]  open <%s> file error \n", __FILE__, __func__, __LINE__, FILE_NAME_DEFECT);
+		LogError("[%s:%s %u]  open <%s> file error \n", __FILE__, __func__, __LINE__, Nbuf);
 		return -2;
 	}
 	fwrite(pSaveBuf, sizeof(UINT), ImageSize / 4, fp);			
 	fclose(fp);
 
 	return 0;
+}
+
+/*********************************************************
+* 函 数 名: ReadImageData
+* 功能描述: 保存图像数据
+* 参数说明: Output：[pImage:读取的图像数据]	
+* 返 回 值：数据长度，失败返回-1
+* 备    注:
+*********************************************************/
+int UdpFunc::ReadImageData(UCHAR *pImage)
+{
+	FILE *fp;
+	char Nbuf[50];
+	int lSize = 0;
+	char *pEnv;
+
+	sprintf(Nbuf, RAW_IMAGE_PATH"Image%d.raw", mReadNum);
+	mReadNum++;
+	if((fp=fopen(Nbuf,"r"))==NULL)
+	{
+		LogError("[%s:%s %u]  open <%s> file error \n", __FILE__, __func__, __LINE__, Nbuf);
+		return -1;
+	}
+	fseek(fp, 0L, SEEK_END);
+	lSize = ftell(fp);
+	fseek(fp, 0L, SEEK_SET);	
+	fread(pImage, sizeof(UCHAR), lSize, fp);			
+	fclose(fp);
+
+	//获取环境变量中的帧号
+	pEnv = getenv("HBFrameNum");
+	if (NULL != pEnv) {
+		m_FrameCount = atoi(pEnv);
+		if (mReadNum == m_FrameCount) {
+			mFrameImageFlag = 1;
+		}
+	}
+
+	return lSize;
 }
 
 /*********************************************************
@@ -431,7 +479,6 @@ UCHAR *UdpFunc::CorrectionDefect(UCHAR * pImage, UINT *ImageLenBuf, UINT PanelSi
 *********************************************************/
 int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 {
-	UINT len = 0;
 	UINT packageNo = 0;		//包号
 	UCHAR *pImage = NULL;
 	UINT ImageLen = 0;			//像素值，2个字节一个像素点
@@ -442,14 +489,9 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	UINT SV = 100;
 	int m_ret = 0;
 
-	USHORT *pTempGainBuf = NULL;
-
 	UCHAR *pImageOffset = NULL;
 	UCHAR *pImageGain = NULL;
 	UCHAR *pImageDefect = NULL;
-
-	FILE * fpFile;
-	int lSize,lCount;
 
 	offset = ParaInfo.offset;
 	gain = ParaInfo.gain;
@@ -476,6 +518,9 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 //给丢包使用图像像素
 	mImageLen = ImageLen;
 
+	//szgTest:
+	// UdpSendImage();
+	// return 0;
 //offset选择
 	//修改：当offset为1或3时，没有实现，需要赋值为0，否则上不了图
 	if ((1 == offset) || (3 == offset)) {
@@ -510,13 +555,12 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	}
 	//最终生成的数据
 	pSaveImage = pImage;	
-	mFrameNum++;		//帧号
-/*
-	m_ret = SaveImageData(pSaveImage, ImageSize);
+
+	m_ret = SaveImageData(pSaveImage, ImageSize, mFrameNum);
 	if (0 != m_ret) {
 		LogError("[%s:%s %u]=== SaveImageData error! ret=%d\n", __FILE__, __func__, __LINE__, m_ret);
 	}
-*/
+
 	
 	while (1)
 	{	
@@ -546,6 +590,7 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	}
 	LogDebug("[%s:%s %u]  UploadImageData success! \n", __FILE__, __func__, __LINE__);
 
+	mFrameNum++;		//帧号
 	return 0;
 }
 
@@ -890,6 +935,65 @@ int UdpFunc::DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue)
 	return 0;
 }
 
+/*********************************************************
+* 函 数 名: UdpSendImage
+* 功能描述: 把保存图像数据发送给上位机
+* 参数说明: 	
+* 返 回 值：
+* 备    注: 利用环境变量存储图像数量
+*********************************************************/
+void UdpFunc::UdpSendImage()
+{
+	UCHAR * pImage = NULL;
+	UINT packageNo = 0;
+	int lImageSize = 0;
+	int ImageLen = 0;
+	LogDebug("[%s:%s %u]  UdpSendImage Start! \n", __FILE__, __func__, __LINE__);
+
+	lImageSize = ReadImageData(pSaveImage);
+	if (-1 == lImageSize) {
+		return;
+	}
+
+	pImage = pSaveImage;
+	ImageLen = lImageSize / 2;
+
+	while(1)
+	{	
+		//一帧图像（3072*3072）像素点，然后除以512得出18432k，1K组一个包发送
+		if (packageNo == (ImageLen / 512)) {
+			break;
+		}
+		
+		CreateCmd(CMDU_UPLOAD_IMAGE_SINGLE_SHOT, NULL);	//szgTest:需要确认
+		//帧号
+		pSendBuf[HB_ID1] = (mFrameNum ) & 0xff;
+		pSendBuf[HB_ID2] = (mFrameNum >> 8) & 0xff;
+		pSendBuf[HB_ID3] = (mFrameNum >> 16) & 0xff;
+		//包号
+		pSendBuf[HB_ID7] = (packageNo ) & 0xff;
+		pSendBuf[HB_ID8] = (packageNo >> 8) & 0xff;
+		pSendBuf[HB_ID9] = (packageNo >> 16) & 0xff;
+
+		MyMemcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], pImage, TMP_BUFFER_SIZE);
+		
+		if (0 != UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE)) {
+			LogError("[%s:%s %u]=== UDP_SEND failed!", __FILE__, __func__, __LINE__);
+			return;
+		}
+		packageNo++;
+		pImage += TMP_BUFFER_SIZE;
+	}
+	LogDebug("[%s:%s %u]  UdpSendImage[%d] success! total=%d\n", __FILE__, __func__, __LINE__, mReadNum, m_FrameCount);
+
+	//判断保存的图像是否读取完毕，发个消息给上位机
+	if (1 == mFrameImageFlag) {
+		LogDebug("[%s:%s %u]  ===Read Complete!!!! \n", __FILE__, __func__, __LINE__);
+		//UploadResponseCmd(CMDD_DUMMPLING);	//szgTest:需要确认
+		return;
+	}
+}
+
 void UdpFunc::UdpFuncInit()
 {
 #if 1
@@ -1025,6 +1129,10 @@ void UdpFunc::run()
 					if (0 == DownloadCurrencyTemplate(recvbuf, 2)) {
 						UploadResponseCmd(CMDD_PACKET_RETRANS);			
 					}
+					break;
+				case 0xf8: //szgTest:需要确认
+					//读取EMMC图像 
+					//UdpSendImage();
 					break;
 				default:
 					break;

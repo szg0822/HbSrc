@@ -208,11 +208,22 @@ public:
 	/*********************************************************
 	* 函 数 名: SaveImageData
 	* 功能描述: 保存图像数据
-	* 参数说明: pImage：图像数据					
-	* 返 回 值：
+	* 参数说明: pImage：图像数据	
+	*		   ImageSize:数据大小
+	*		   FrameNum：帧号
+	* 返 回 值：0：成功；!0：失败
 	* 备    注:
 	*********************************************************/
-	int SaveImageData(UCHAR *pImage, int ImageSize);
+	int SaveImageData(UCHAR *pImage, int ImageSize, UINT FrameNum);
+
+	/*********************************************************
+	* 函 数 名: ReadImageData
+	* 功能描述: 保存图像数据
+	* 参数说明: Output：[pImage:读取的图像数据]	
+	* 返 回 值：数据长度，失败返回-1
+	* 备    注:
+	*********************************************************/
+	int ReadImageData(UCHAR *pImage);
 
 	/*********************************************************
 	* 函 数 名: CorrectionOffset
@@ -245,6 +256,15 @@ public:
 	* 备    注:
 	*********************************************************/
 	UCHAR *CorrectionDefect(UCHAR * pImage, UINT *ImageLenBuf, UINT PanelSize);
+
+	/*********************************************************
+	* 函 数 名: UdpSendImage
+	* 功能描述: 把保存图像数据发送给上位机
+	* 参数说明: 	
+	* 返 回 值：
+	* 备    注: 利用环境变量存储图像数量
+	*********************************************************/
+	void UdpSendImage();
 
 	UCHAR *p_bram_state; 		//映射的状态数据地址
 	UCHAR *p_bram_parameter; 	//映射的参数数据地址
