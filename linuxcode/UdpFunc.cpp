@@ -33,15 +33,15 @@ static UINT mUpPackNumFlag = 0;		//update数据包的个数只需要获取一次
 static UINT mUpSuccess = 0;			//update数据包成功的标志
 
 //校正模板
-static UCHAR *pSaveRam = NULL;				//在offset固件校正时，bram C保存区缓存
+static USHORT *pSaveRam = NULL;				//在offset固件校正时，bram C保存区缓存
 static UCHAR *pTemplateBuf = NULL;	//Gain模板指针
 static UCHAR *pGainTail;			//指向下载模板的保存数据地址
 static UINT mDownloadFlag = 0;		//下载模板标志
 static UCHAR *pSaveImage = NULL;	//保存的图像数据
 
 //必须初始化，否则free会段错误
-static UCHAR *pTmpGainBuf = NULL;
-static UCHAR * ipGainPtr = NULL;
+static USHORT *pTmpGainBuf = NULL;
+static uint_16 * ipGainPtr = NULL;
 
 //Flag
 static UINT MGainBufFlag = 0;		//标志：申请一次地址，保存Gain校正后的数据
@@ -207,6 +207,217 @@ int UdpFunc::SaveImageData(UCHAR *pImage, int ImageSize)
 }
 
 /*********************************************************
+* 函 数 名: CorrectionOffset
+* 功能描述: Offset固件校正
+* 参数说明: ImageSize:图片大小
+*		   SV:饱和值					
+* 返 回 值：校正数据
+* 备    注:
+*********************************************************/
+UCHAR *UdpFunc::CorrectionOffset(UINT ImageSize, UINT SV)
+{
+	//俩帧合为一帧
+	int j = 0;
+	USHORT C2;
+	UCHAR *pImBuf = NULL;
+	if (0 == MOffsetFlag) {
+		MOffsetFlag = 1;
+		pSaveRam = (USHORT *)malloc(ImageSize); //在offset固件校正时，bram C保存区缓存
+	}
+	memset(pSaveRam, 0x00, ImageSize);
+	USHORT *TmpA = (USHORT *)p_bramA_image;
+	USHORT *TmpB = (USHORT *)p_bramB_image;
+	for (int i = 0; i < ImageSize / 2; i++) {
+		//算法需要实现,俩个字节运算
+		USHORT A2 = TmpA[i];
+		USHORT B2 = TmpB[i];
+		if (A2 < SV) {
+			if ((A2 < B2) && (B2 - A2 <= 100)) 
+				C2 = 100 - (B2 - A2);
+			else if (A2 >= B2)
+				C2 = A2 - B2 + 100;
+			else if ((A2 < B2) && (B2 - A2 > 100))
+				C2 = 100;		
+		}
+		else {
+			C2 = SV;
+		}
+		pSaveRam[i] = C2;
+	}
+	pImBuf = (UCHAR*)pSaveRam;
+	return pImBuf;
+}
+
+/*********************************************************
+* 函 数 名: CorrectionGain
+* 功能描述: Gain固件校正
+* 参数说明: ImageSize:图片大小
+*		   sv:饱和值					
+* 返 回 值：校正数据
+* 备    注:
+*********************************************************/
+UCHAR *UdpFunc::CorrectionGain(UCHAR * pImage, UINT ImageSize, UINT SV)
+{
+	FILE * fpFile;
+	int lSize, lCount;
+	UCHAR *pImBuf = NULL;
+	USHORT *pDefeBuf = NULL;
+	uint_16 TGain;
+	USHORT TMP_Gain = 0;
+	USHORT OffsetT = 0;
+
+	fpFile = fopen(FILE_NAME_GAIN, "r");
+	if (NULL == fpFile) {
+		LogError("[%s:%s %u]  No template downloaded (file<%s> failed!) \n", __FILE__, __func__, __LINE__, FILE_NAME_GAIN);
+		return NULL;
+	}
+	else {
+	//申请Gain校正后的地址
+		if (0 == MGainBufFlag) {
+			MGainBufFlag = 1;
+			if (NULL != pTmpGainBuf) {
+				free(pTmpGainBuf);
+				pTmpGainBuf = NULL;
+			}
+			pTmpGainBuf = (USHORT *)malloc(ImageSize);					
+		}
+		
+		memset(pTmpGainBuf, 0, ImageSize);
+		
+	//拷贝Gain校正模板数据
+		if (1 == FileGainFlag) {
+			FileGainFlag = 0;
+			if (NULL!= ipGainPtr) {
+				free(ipGainPtr);
+				ipGainPtr = NULL;
+			}
+			// fseek(fpFile, 0L, SEEK_END);
+			// lSize = ftell(fpFile);
+			// fseek(fpFile, 0L, SEEK_SET);	
+			lSize = ImageSize;
+			lCount = lSize / sizeof(uint_16);
+			ipGainPtr = (uint_16*)malloc(lSize);
+			memset(ipGainPtr, 0, lSize);
+			fread(ipGainPtr,sizeof(uint_16),lCount,fpFile);				
+		}
+		fclose(fpFile);
+		
+
+		pDefeBuf = (USHORT *)pImage;
+		for (int i = 0; i < ImageSize / 2; i++) {
+			TGain = BSWAP_16(ipGainPtr[i]);
+			//GainT = ((ipGainPtr[j] & 0xff) << 8) | (ipGainPtr[j+1] & 0xff);
+			OffsetT = pDefeBuf[i];
+			TMP_Gain = OffsetT * 1024 / TGain;
+			if (TMP_Gain >= SV) {
+				TMP_Gain = SV;
+			}
+			pTmpGainBuf[i] = TMP_Gain;
+		}
+		pImBuf = (UCHAR *)pTmpGainBuf;
+	}
+	return pImBuf;
+}
+
+/*********************************************************
+* 函 数 名: CorrectionDefect
+* 功能描述: Defect固件校正
+* 参数说明: pImage:图片数据
+*		   ImageLenBuf:长宽数据
+*		   PanelSize:平板像素大小选择				
+* 返 回 值：校正数据
+* 备    注:
+*********************************************************/
+UCHAR *UdpFunc::CorrectionDefect(UCHAR * pImage, UINT *ImageLenBuf, UINT PanelSize)
+{
+	FILE * fpFile;	
+	USHORT *pTempGainBuf = NULL;
+	int lSize, lCount;
+	UCHAR *pImaBuf = NULL;
+
+	fpFile = fopen(FILE_NAME_DEFECT, "r");
+	if (NULL == fpFile) {
+		LogError("[%s:%s %u]  No template downloaded (file<%s> failed!) \n", __FILE__, __func__, __LINE__, FILE_NAME_DEFECT);
+		return NULL;
+	}
+	else {
+		//ImageLenBuf[2 * PanelSize - 2] * ImageLenBuf[2 * PanelSize - 1];
+		UINT TmpLenX = ImageLenBuf[2 * PanelSize - 2];
+		UINT TmpLenY = ImageLenBuf[2 * PanelSize - 1];
+									
+		UINT iTmp;	
+		uint_32 bswap_ret;
+		int iR = 0;
+		pTempGainBuf = (USHORT *)pImage;
+		//拷贝Gain校正模板数据	
+				
+		fseek(fpFile, 0L, SEEK_END);
+		lSize = ftell(fpFile);
+		fseek(fpFile, 0L, SEEK_SET);
+		lCount = lSize / sizeof(uint_32);
+		Tdef = (uint_32*)malloc(lSize);
+		memset(Tdef, 0, lSize);
+		fread(Tdef, sizeof(uint_32), lCount, fpFile);
+		fclose(fpFile);						 
+		//B5 B1 0B FF
+		int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+		for(int a = 0; a < lCount; a++) {
+			UINT count = 0; //正常像素点个数
+			UINT sum = 0;
+			bswap_ret = BSWAP_32(Tdef[a]);
+			//12+12+8位
+			int x = ((bswap_ret & 0xfff00000) >> 20);
+			int y = ((bswap_ret & 0x000fff00) >> 8);
+			int de = (bswap_ret & 0x00000ff);
+			// int x = ((Pdefect[0] & 0xff) << 4) | ((Pdefect[1] & 0xf0) >> 4);
+			// int y = ((Pdefect[1] & 0x0f) << 8) | ((Pdefect[2]) & 0xff);
+			/*排列顺序
+				0==3==5
+				1==X==6
+				2==4==7	
+			*/
+			//获取正常点坐标
+			int pos = 7;	//移位计数
+			x1 = x + 1;
+			x2 = x - 1;
+			y1 = y + 1; 
+			y2 = y - 1;
+			//去除超界的点
+			if (x1 > TmpLenX - 1) x1 =  TmpLenX - 1;
+			if (x2 < 0) x2 = 0;
+			if (y1 > TmpLenY - 1) y1 =  TmpLenY - 1;
+			if (y2 < 0) y2 = 0;
+			for (int i = x1; i >= x2; i--) {
+				for (int j = y1; j >= y2; j--) {
+					//中心不运算
+					if (i == x && j == y)
+						continue;
+					//正常像素点计数
+					if (0 != ((1 << pos) & de)) {
+						count++;
+						iR = j * TmpLenX + i;
+						sum += pTempGainBuf[iR];
+					}
+					pos--;
+				}
+			}
+			if (count > 0) {
+				iR = y * TmpLenX + x;
+				pTempGainBuf[iR] = sum / count;
+			}
+			
+				//LogError("test1:sum=%d, count=%d, defect[%d][%d]=%d, de=0x%x\n", sum,count,x,y,pTempGainBuf[iR], de);
+		}
+		pImaBuf = (UCHAR *)pTempGainBuf;
+		if (NULL != Tdef) {
+			free(Tdef);
+			Tdef = NULL;
+		}
+	}
+	return pImaBuf;
+}
+
+/*********************************************************
 * 函 数 名: UploadImageData
 * 功能描述: 上传图像数据，组包并UDP发送
 * 参数说明: cmdID:上位机命令
@@ -230,6 +441,10 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	int m_ret = 0;
 
 	USHORT *pTempGainBuf = NULL;
+
+	UCHAR *pImageOffset = NULL;
+	UCHAR *pImageGain = NULL;
+	UCHAR *pImageDefect = NULL;
 
 	FILE * fpFile;
 	int lSize,lCount;
@@ -270,189 +485,26 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	}
 //offset固件校正
 	else if (2 == offset) {
-		//俩帧合为一帧
-		int j = 0;
-		USHORT C2;
-
-		if (0 == MOffsetFlag) {
-			MOffsetFlag = 1;
-			pSaveRam = (UCHAR *)malloc(ImageSize); //在offset固件校正时，bram C保存区缓存
-		}
-		memset(pSaveRam, 0x00, ImageSize);
-		USHORT *TmpA = (USHORT *)p_bramA_image;
-		USHORT *TmpB = (USHORT *)p_bramB_image;
-
-		for (int i = 0; i < ImageLen; i++) {
-			//算法需要实现,俩个字节运算
-			USHORT A2 = TmpA[i];
-			USHORT B2 = TmpB[i];
-
-			if (A2 < SV) {
-				if ((A2 < B2) && (B2 - A2 <= 100)) 
-					C2 = 100 - (B2 - A2);
-				else if (A2 >= B2)
-					C2 = A2 - B2 + 100;
-				else if ((A2 < B2) && (B2 - A2 > 100))
-					C2 = 100;		
-			}
-			else {
-				C2 = SV;
-			}
-
-			pSaveRam[j] = C2 & 0xff;
-			pSaveRam[j + 1] = (C2 >> 8) & 0xff;
-			j += 2;
-		}
-		pSaveRam[ImageLen * 2] = '\0';
-		pImage = pSaveRam;
+		pImageOffset = CorrectionOffset(ImageSize, SV);
+		pImage = pImageOffset;
 
 	//Gain模板固件校正
 		if (2 == gain) {
-			fpFile = fopen(FILE_NAME_GAIN, "r");
-			if (NULL == fpFile) {
-				LogError("[%s:%s %u]  No template downloaded (file<%s> failed!) \n", __FILE__, __func__, __LINE__, FILE_NAME_GAIN);
-			}
-			else {
-				USHORT TMP_Gain = 0;
-				int j = 0;
-				USHORT GainT = 0;
-				USHORT OffsetT = 0;
-			//申请Gain校正后的地址
-				if (0 == MGainBufFlag) {
-					MGainBufFlag = 1;
-					if (NULL != pTmpGainBuf) {
-						free(pTmpGainBuf);
-						pTmpGainBuf = NULL;
-					}
-					pTmpGainBuf = (UCHAR *)malloc(ImageSize);					
-				}
-				
-				memset(pTmpGainBuf, 0, ImageSize);
-				
-			//拷贝Gain校正模板数据
-				if (1 == FileGainFlag) {
-					FileGainFlag = 0;
-					if (NULL!= ipGainPtr) {
-						free(ipGainPtr);
-						ipGainPtr = NULL;
-					}
-					fseek(fpFile, 0L, SEEK_END);
-					lSize = ftell(fpFile);
-					fseek(fpFile, 0L, SEEK_SET);	
-					ipGainPtr = (UCHAR*)malloc(lSize);	
-					fread(ipGainPtr,sizeof(UCHAR),lSize,fpFile);				
-				}
-				fclose(fpFile);
-
-				for (int i = 0; i < ImageLen; i++) {
-					GainT = ((ipGainPtr[j] & 0xff) << 8) | (ipGainPtr[j+1] & 0xff);
-					OffsetT = (pSaveRam[j] & 0xff) | ((pSaveRam[j+1] & 0xff) << 8);
-					TMP_Gain = OffsetT * 1024 / GainT;
-					if (TMP_Gain >= SV) {
-						TMP_Gain = SV;
-					}
-					pTmpGainBuf[j] = TMP_Gain & 0xff;
-					pTmpGainBuf[j + 1] = (TMP_Gain >> 8) & 0xff;
-					j += 2;
-				}
-
-				pTmpGainBuf[ImageSize] = '\0';
-				pImage = pTmpGainBuf;
-				pTempGainBuf = (USHORT *)pTmpGainBuf;
+			pImageGain = CorrectionGain(pImageOffset, ImageSize, SV);
+			if (NULL != pImageGain)
+				pImage = pImageGain;
+			else 
+				pImage = pImageOffset;
 
 			//Defect模板固件校正
-				if (2 == defect) {							
-					fpFile = fopen(FILE_NAME_DEFECT, "r");
-					if (NULL == fpFile) {
-						LogError("[%s:%s %u]  No template downloaded (file<%s> failed!) \n", __FILE__, __func__, __LINE__, FILE_NAME_DEFECT);
-					}
-					else {
-						//ImageLenBuf[2 * PanelSize - 2] * ImageLenBuf[2 * PanelSize - 1];
-						UINT TmpLenX = ImageLenBuf[2 * PanelSize - 2];
-						UINT TmpLenY = ImageLenBuf[2 * PanelSize - 1];
-													
-						UINT iTmp;	
-						uint_32 bswap_ret;
-						int iR = 0;
-
-						//拷贝Gain校正模板数据	
-								
-						fseek(fpFile, 0L, SEEK_END);
-						lSize = ftell(fpFile);
-						fseek(fpFile, 0L, SEEK_SET);
-						lCount = lSize / sizeof(uint_32);
-						Tdef = (uint_32*)malloc(lSize);
-						memset(Tdef, 0, lSize);
-						fread(Tdef, sizeof(uint_32), lCount, fpFile);
-						fclose(fpFile);						 
-
-						//B5 B1 0B FF
-						int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
-						for(int a = 0; a < lCount; a++) {
-							UINT count = 0; //正常像素点个数
-							UINT sum = 0;
-
-							bswap_ret = BSWAP_32(Tdef[a]);
-							//12+12+8位
-							int x = ((bswap_ret & 0xfff00000) >> 20);
-							int y = ((bswap_ret & 0x000fff00) >> 8);
-							int de = (bswap_ret & 0x00000ff);
-							// int x = ((Pdefect[0] & 0xff) << 4) | ((Pdefect[1] & 0xf0) >> 4);
-							// int y = ((Pdefect[1] & 0x0f) << 8) | ((Pdefect[2]) & 0xff);
-
-							/*排列顺序
-								0==3==5
-								1==X==6
-								2==4==7	
-							*/
-
-							//获取正常点坐标
-							int pos = 7;	//移位计数
-
-							x1 = x + 1;
-							x2 = x - 1;
-							y1 = y + 1; 
-							y2 = y - 1;
-
-							//去除超界的点
-							if (x1 > TmpLenX - 1) x1 =  TmpLenX - 1;
-							if (x2 < 0) x2 = 0;
-							if (y1 > TmpLenY - 1) y1 =  TmpLenY - 1;
-							if (y2 < 0) y2 = 0;
-
-							for (int i = x1; i >= x2; i--) {
-								for (int j = y1; j >= y2; j--) {
-									//中心不运算
-									if (i == x && j == y)
-										continue;
-									//正常像素点计数
-									if (0 != ((1 << pos) & de)) {
-										count++;
-										iR = j * TmpLenX + i;
-										sum += pTempGainBuf[iR];
-									}
-									pos--;
-								}
-							}
-							if (count > 0) {
-								iR = y * TmpLenX + x;
-								pTempGainBuf[iR] = sum / count;
-							}
-							
-								//LogError("test1:sum=%d, count=%d, defect[%d][%d]=%d, de=0x%x\n", sum,count,x,y,pTempGainBuf[iR], de);
-						}
-
-						pImage = (UCHAR *)pTempGainBuf;
-
-						if (NULL != Tdef) {
-							free(Tdef);
-							Tdef = NULL;
-						}
-					}
-				}
-			 }
-			
-		}
+			if (2 == defect) {
+				pImageDefect = CorrectionDefect(pImageGain, ImageLenBuf, PanelSize);
+				if (NULL != pImageDefect)	
+					pImage = pImageDefect;
+				else
+					pImage = pImageGain;
+			}	
+		}				
 	}
 	//最终生成的数据
 	pSaveImage = pImage;
@@ -841,6 +893,7 @@ void UdpFunc::UdpFuncInit()
 
 	//开机第一次fread时间长，需提前获取
 	FILE *fpFile; 
+	int lCount;
 	fpFile = fopen(FILE_NAME_GAIN, "r");
 	if (NULL == fpFile) {
 		LogError("[%s:%s %u]  No template downloaded (file<%s> failed!) \n", __FILE__, __func__, __LINE__, FILE_NAME_GAIN);
@@ -848,9 +901,10 @@ void UdpFunc::UdpFuncInit()
 		fseek(fpFile, 0L, SEEK_END);
 		int lSize = ftell(fpFile);
 		fseek(fpFile, 0L, SEEK_SET);
-		ipGainPtr = (UCHAR*)malloc(lSize);
+		lCount = lSize / sizeof(uint_16);
+		ipGainPtr = (uint_16*)malloc(lSize);
 		memset(ipGainPtr, 0, lSize);
-		fread(ipGainPtr,sizeof(UCHAR),lSize,fpFile);
+		fread(ipGainPtr,sizeof(uint_16),lCount,fpFile);
 		fclose(fpFile);
 		FileGainFlag = 0;
 	}

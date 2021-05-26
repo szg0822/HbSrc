@@ -212,6 +212,38 @@ public:
 	*********************************************************/
 	int SaveImageData(UCHAR *pImage, int ImageSize);
 
+	/*********************************************************
+	* 函 数 名: CorrectionOffset
+	* 功能描述: Offset固件校正
+	* 参数说明: ImageSize:图片大小
+	*		   sv:饱和值					
+	* 返 回 值：校正数据
+	* 备    注:
+	*********************************************************/
+	UCHAR *CorrectionOffset(UINT ImageSize, UINT SV);
+
+	/*********************************************************
+	* 函 数 名: CorrectionGain
+	* 功能描述: Gain固件校正
+	* 参数说明: pImage:图像数据
+	*		   ImageSize:图片大小
+	*		   sv:饱和值					
+	* 返 回 值：校正数据
+	* 备    注:
+	*********************************************************/
+	UCHAR *CorrectionGain(UCHAR * pImage, UINT ImageSize, UINT SV);
+
+	/*********************************************************
+	* 函 数 名: CorrectionDefect
+	* 功能描述: Defect固件校正
+	* 参数说明: pImage:图片数据
+	*		   ImageLenBuf:长宽数据
+	*		   PanelSize:平板像素大小选择				
+	* 返 回 值：校正数据
+	* 备    注:
+	*********************************************************/
+	UCHAR *CorrectionDefect(UCHAR * pImage, UINT *ImageLenBuf, UINT PanelSize);
+
 	UCHAR *p_bram_state; 		//映射的状态数据地址
 	UCHAR *p_bram_parameter; 	//映射的参数数据地址
 	UCHAR *p_bramA_image;		//映射的图像数据A地址

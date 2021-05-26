@@ -150,20 +150,10 @@ static void UdpSend()
 	LogError("[%s:%s %u]=== UdpSend END ", __FILE__, __func__, __LINE__);
 }
 
-int main(int argc, char* argv[])
+int InitDevMem()
 {
 	UCHAR *pBramTmp;
-
-//日志初始化
-	InitLinuxLog();
-	LogDebug("[%s:%s %u]  ************[[[START RUN LINUX]]]*********** \n", __FILE__, __func__, __LINE__);
-
-//udp连接
-	//UDP无线方式
-	char SrcWirelessIp[MAX_IP_LEN] = "192.168.10.80";
-	UdpConnect(SrcWirelessIp);
-
-//将文件映射到内存	
+	//将文件映射到内存	
 	if ((fd_bram = open("/dev/mem", O_RDWR | O_SYNC)) != -1) {
 		pBramTmp = (UCHAR *)mmap(NULL, BRAM_TMP_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED , fd_bram, FPGA_TMP_ADDRESS);
 		//pBramParameter = (UCHAR *)mmap(NULL, BRAM_SIZE_PARAMETER, PROT_READ|PROT_WRITE, MAP_SHARED, fd_bram, FPGA_PARAMETER);
@@ -197,6 +187,28 @@ int main(int argc, char* argv[])
 		close(fd_bram);
 		return -3;
     }  
+	return 0;
+}
+
+int main(int argc, char* argv[])
+{
+	int ret = 0;
+//日志初始化
+	InitLinuxLog();
+	LogDebug("[%s:%s %u]  ************[[[START RUN LINUX]]]*********** \n", __FILE__, __func__, __LINE__);
+
+//将文件映射到内存	
+	ret = InitDevMem();
+	if (0 != ret) {
+		LogError("[%s:%s %u]  InitDevMem error! ret=%d \n", __FILE__, __func__, __LINE__, ret);
+		return -1;
+	}
+
+//udp连接
+	//UDP无线方式
+	char SrcWirelessIp[MAX_IP_LEN] = "192.168.10.80";
+	UdpConnect(SrcWirelessIp);
+
 
 	//udp连接，接收线程
 	udpfunc.start();
