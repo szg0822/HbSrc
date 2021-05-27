@@ -57,7 +57,7 @@ static UINT mPackCount = 0;			//UpdateFirmware 包的数量
 static UINT mFrameNum = 0;			//帧号，图片数量
 static UINT mReadNum = 0;			//读取EMMC图像数量
 static UINT mFrameImageFlag = 0;	//是否读取完成；1：完成
-static int m_FrameCount = 0;		//存储在环境变量里的图像数量
+static UINT m_FrameCount = 0;		//存储在文件里的图像数量
 
 // typedef struct defect {
 	// unsigned de:8;
@@ -178,6 +178,35 @@ int UdpFunc::UploadParameterData(TCmdID cmdID)
 	return 0;
 }
 
+//存储图片数量
+void StoreImageCount(UINT ImageCount)
+{
+    FILE * fp = NULL;
+
+    fp = fopen("ImageCount.txt","w");
+    fprintf(fp, "%-10d", ImageCount);
+    fclose(fp);
+}
+//获取图片数量
+void GetImageCount(UINT * ImageCount)
+{
+    FILE * fp = NULL;   //文件指针，指向成功打开的文件
+
+    //打开文件，以只读的方式r
+    fp = fopen("ImageCount.txt","r");
+    if (fp == NULL)
+    {
+        // fp = fopen("ImageCount.txt","w");
+        // fprintf(fp, "%-10d", *ImageCount);
+    }
+    else
+        fscanf(fp, "%10d", ImageCount);
+
+    //关闭文件
+    fclose(fp);
+}
+
+
 /*********************************************************
 * 函 数 名: SaveImageData
 * 功能描述: 保存图像数据
@@ -191,6 +220,7 @@ int UdpFunc::SaveImageData(UCHAR *pImage, int ImageSize, UINT FrameNum)
 {
 	FILE *fp;
 	char mBuf[50];
+	char lCmdBuf[256];
 
 	char Nbuf[50] = {'\0'};
 	UINT *pSaveBuf = NULL;
@@ -200,11 +230,16 @@ int UdpFunc::SaveImageData(UCHAR *pImage, int ImageSize, UINT FrameNum)
 	}
 
 	pSaveBuf = (UINT *)pImage;
+	
+	//每次开机后需要存图时，先删除旧图
+	if (0 == FrameNum) {
+		sprintf(lCmdBuf, "rm -f %s/*", RAW_IMAGE_PATH);
+		system(lCmdBuf);
+	}
 
 	sprintf(Nbuf, RAW_IMAGE_PATH"Image%d.raw", FrameNum);
-	//把图像数量保存到环境变量
-	sprintf(mBuf, "HBFrameNum=%d", FrameNum + 1);
-	putenv(mBuf);
+	//把图像数量保存到文件
+	StoreImageCount(FrameNum + 1);
 
 	if((fp=fopen(Nbuf,"wt+"))==NULL)
 	{
@@ -213,6 +248,7 @@ int UdpFunc::SaveImageData(UCHAR *pImage, int ImageSize, UINT FrameNum)
 	}
 	fwrite(pSaveBuf, sizeof(UINT), ImageSize / 4, fp);			
 	fclose(fp);
+	LogDebug("[%s:%s %u]  SaveImageData[%d] Successfun!  \n", __FILE__, __func__, __LINE__, FrameNum + 1);
 
 	return 0;
 }
@@ -229,7 +265,11 @@ int UdpFunc::ReadImageData(UCHAR *pImage)
 	FILE *fp;
 	char Nbuf[50];
 	int lSize = 0;
-	char *pEnv;
+
+	//轮询：提示图像读取完毕
+	if (1 == mFrameImageFlag) {
+		mFrameImageFlag = 0;
+	}
 
 	sprintf(Nbuf, RAW_IMAGE_PATH"Image%d.raw", mReadNum);
 	mReadNum++;
@@ -244,15 +284,12 @@ int UdpFunc::ReadImageData(UCHAR *pImage)
 	fread(pImage, sizeof(UCHAR), lSize, fp);			
 	fclose(fp);
 
-	//获取环境变量中的帧号
-	pEnv = getenv("HBFrameNum");
-	if (NULL != pEnv) {
-		m_FrameCount = atoi(pEnv);
-		if (mReadNum == m_FrameCount) {
-			mFrameImageFlag = 1;
-		}
+	//从文件里获取图像数量
+	GetImageCount(&m_FrameCount);
+	if (mReadNum == m_FrameCount) {
+		mFrameImageFlag = 1;
 	}
-
+	
 	return lSize;
 }
 
@@ -518,9 +555,6 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 //给丢包使用图像像素
 	mImageLen = ImageLen;
 
-	//szgTest:
-	// UdpSendImage();
-	// return 0;
 //offset选择
 	//修改：当offset为1或3时，没有实现，需要赋值为0，否则上不了图
 	if ((1 == offset) || (3 == offset)) {
@@ -988,6 +1022,7 @@ void UdpFunc::UdpSendImage()
 
 	//判断保存的图像是否读取完毕，发个消息给上位机
 	if (1 == mFrameImageFlag) {
+		mReadNum = 0;
 		LogDebug("[%s:%s %u]  ===Read Complete!!!! \n", __FILE__, __func__, __LINE__);
 		//UploadResponseCmd(CMDD_DUMMPLING);	//szgTest:需要确认
 		return;
@@ -1030,7 +1065,6 @@ void UdpFunc::UdpFuncInit()
 		fclose(fpFile);
 		FileGainFlag = 0;
 	}
-
 }
 
 void UdpFunc::run()
