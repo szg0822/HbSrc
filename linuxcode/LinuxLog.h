@@ -18,6 +18,7 @@
 
 //LogDebug("[%s:%s %u]  deguglog \n", __FILE__, __func__, __LINE__);
 //LogError("[%s:%s %u]  errorlog errno=%d[%s]\n", __FILE__, __func__, __LINE__, errno, strerror(errno));
+//LogError("[%s:%s %u]  errorlog \n", __FILE__, __func__, __LINE__);
 
 //#define PrintLog
 #ifdef  PrintLog

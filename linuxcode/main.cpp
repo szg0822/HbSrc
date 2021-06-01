@@ -34,6 +34,7 @@ using namespace std;
 //static char const *szsrcIp = "192.168.10.80";    //本机IP
 UdpFunc udpfunc;//线程对象
 
+parameter_t m_ParaInfo;
 
 //FPGA地址
 int	fd_bram;
@@ -59,6 +60,31 @@ static int UdpConnect(char *SrcIp)
 	return 0;
 }        
 
+//获取参数
+static void GetBramParameter()
+{
+	UCHAR tmpSVBuf[5] = {0};
+
+//offset(1byte)		offset参数值, 0:不做offset；1：软件offset；2:固件offset
+	m_ParaInfo.offset = *(pBramParameter + OFFSET_PARAMETER_OFFSET); 					//取offset参数值
+				
+//gain(1byte)		
+	m_ParaInfo.gain = *(pBramParameter + OFFSET_PARAMETER_GAIN); 					//取gain参数值
+				
+//defect(1byte)		
+	m_ParaInfo.defect = *(pBramParameter + OFFSET_PARAMETER_DEFECT); 					//取defect参数值
+
+//Saturation Value(4byte)
+	udpfunc.MyMemcpy(tmpSVBuf, (pBramParameter + OFFSET_PARAMETER_SATURATION_VALUE), 4);
+	m_ParaInfo.SaturationV = tmpSVBuf[0] << 24 | tmpSVBuf[1] << 16 | tmpSVBuf[2] << 8 | tmpSVBuf[3];
+
+//Panel_Size(平板像素大小的选择)
+	m_ParaInfo.PanelSize = *(pBramParameter + OFFSET_PARAMETER_PANELSIZE);
+
+//要读取探测器内部自动存储图像的编号，默认为1
+	//m_ParaInfo.FrameNum = *(pBramParameter + 333);
+
+}
 
 /*********************************************************
 * 函 数 名: UdpSend()
@@ -71,11 +97,9 @@ static void UdpSend()
 {
 	LogDebug("[%s:%s %u]  Wait Fpga .... \n", __FILE__, __func__, __LINE__);
 
-	UCHAR tmpSVBuf[5] = {0};
-	parameter_t ParaInfo;
 	int RebootFlag = 0;			//开机FPGA会主动读取一次配置，需要屏蔽
 	
-	memset(&ParaInfo, 0, sizeof(parameter_t));
+	memset(&m_ParaInfo, 0, sizeof(parameter_t));
 
 	while(1)
 	{
@@ -88,22 +112,7 @@ static void UdpSend()
 					LogDebug("[%s:%s %u]  Recv Fpga 0x03, Parameter \n", __FILE__, __func__, __LINE__);
 					if (0 == udpfunc.UploadParameterData(CMDU_SYSPARA_REPORT))
 						LogDebug("[%s:%s %u]  UploadParameterData success!  \n", __FILE__, __func__, __LINE__);
-
-				//offset(1byte)		offset参数值, 0:不做offset；1：软件offset；2:固件offset
-					ParaInfo.offset = *(pBramParameter + OFFSET_PARAMETER_OFFSET); 					//取offset参数值
-				
-				//gain(1byte)		
-					ParaInfo.gain = *(pBramParameter + OFFSET_PARAMETER_GAIN); 					//取gain参数值
-				
-				//defect(1byte)		
-					ParaInfo.defect = *(pBramParameter + OFFSET_PARAMETER_DEFECT); 					//取defect参数值
-
-				//Saturation Value(4byte)
-					udpfunc.MyMemcpy(tmpSVBuf, (pBramParameter + OFFSET_PARAMETER_SATURATION_VALUE), 4);
-					ParaInfo.SaturationV = tmpSVBuf[0] << 24 | tmpSVBuf[1] << 16 | tmpSVBuf[2] << 8 | tmpSVBuf[3];
-
-				//Panel_Size(平板像素大小的选择)
-					ParaInfo.PanelSize = *(pBramParameter + OFFSET_PARAMETER_PANELSIZE);
+					GetBramParameter();  //获取参数
 				}
 				else if (0 == RebootFlag) {
 					LogDebug("[%s:%s %u]  Recv Fpga 0x03, reboot don't do it\n", __FILE__, __func__, __LINE__);
@@ -118,9 +127,10 @@ static void UdpSend()
 			}
 			case 5: {
 				memset(pBramState, 0xff, BRAM_SIZE_STATE);
-				LogDebug("[%s:%s %u]  Recv Fpga 0x05, SINGLE_SHORT, Offset=%d, Gain=%d, Defect=%d, PanelSize=%d, SaturationValue=%d \n", \
-						__FILE__, __func__, __LINE__, ParaInfo.offset, ParaInfo.gain, ParaInfo.defect, ParaInfo.PanelSize, ParaInfo.SaturationV);
-				if (0 == udpfunc.UploadImageData(CMDU_UPLOAD_IMAGE_SINGLE_SHOT, ParaInfo)) {
+				LogDebug("[%s:%s %u]  Recv Fpga 0x05, SINGLE_SHORT\n Offset=%d, Gain=%d, Defect=%d, PSize=%d, SV=%d, FreamNum=%d\n", \
+						__FILE__, __func__, __LINE__, m_ParaInfo.offset, m_ParaInfo.gain, m_ParaInfo.defect, m_ParaInfo.PanelSize, \
+						m_ParaInfo.SaturationV, m_ParaInfo.FrameNum);
+				if (0 == udpfunc.UploadImageData(CMDU_UPLOAD_IMAGE_SINGLE_SHOT, m_ParaInfo)) {
 					udpfunc.UploadStateCmd(CMDU_REPORT, FPD_STATUS_READY);
 				}
 				break;

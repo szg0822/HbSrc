@@ -66,6 +66,8 @@ static UINT m_FrameCount = 0;		//存储在文件里的图像数量
 // }defect_t;
 // static defect_t * Pdefect = NULL;
 
+static UINT ImageNum = 1;		//保存上一张图像编号
+
 //大小端转换32位
 #define BSWAP_32(x) \   
     (uint_32)((((uint_32)(x) & 0xff000000) >> 24) | \  
@@ -79,6 +81,8 @@ static UINT m_FrameCount = 0;		//存储在文件里的图像数量
               (((uint_16)(x) & 0xff00) >> 8) \  
              )  
 static uint_32 *Tdef = NULL;
+
+extern parameter_t m_ParaInfo;
 
 UdpFunc::UdpFunc()
 {}
@@ -198,6 +202,7 @@ void GetImageCount(UINT * ImageCount)
     {
         // fp = fopen("ImageCount.txt","w");
         // fprintf(fp, "%-10d", *ImageCount);
+		LogError("[%s:%s %u]  fopen ImageCount.txt failed！ \n", __FILE__, __func__, __LINE__);
     }
     else
         fscanf(fp, "%10d", ImageCount);
@@ -269,6 +274,15 @@ int UdpFunc::ReadImageData(UCHAR *pImage)
 	//轮询：提示图像读取完毕
 	if (1 == mFrameImageFlag) {
 		mFrameImageFlag = 0;
+	}
+
+	m_ParaInfo.FrameNum = m_ParaInfo.offset;   //test
+	//从一个指定帧号(n-1)开始读取,默认必须为1
+	if (ImageNum != m_ParaInfo.FrameNum) {
+		if (m_ParaInfo.FrameNum > 0) {
+			mReadNum = m_ParaInfo.FrameNum - 1;
+			ImageNum = m_ParaInfo.FrameNum;
+		}
 	}
 
 	sprintf(Nbuf, RAW_IMAGE_PATH"Image%d.raw", mReadNum);
@@ -805,7 +819,7 @@ int UdpFunc::Update_SaveFile(UCHAR *recvbuf)
 	//每次升级只进来一次
 	if (mUpPackNumFlag == 0) {
 		pRecvCmd = (UCHAR *)(recvbuf + OFFSET_PACKAGE_CMD);
-		LogDebug("[%s:%s %u]  Recv XDStatic Cmd=0x%.2x \n", __FILE__, __func__, __LINE__,  *(pRecvCmd));
+		LogDebug("[%s:%s %u]  Recv XDStatic [Cmd=0x%.2x] \n", __FILE__, __func__, __LINE__,  *(pRecvCmd));
 		PackNum = ((recvbuf[HB_ID8] & 0xff) << 8) | (recvbuf[HB_ID9] & 0xff);		//大端，高低
 
 		LogDebug("[%s:%s %u]  Total_PackNum = %d\n", __FILE__, __func__, __LINE__, PackNum);
@@ -915,7 +929,7 @@ int UdpFunc::DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue)
 		pGainTail = pTemplateBuf;
 		mPackCount = 0;
 		pRecvCmd = (UCHAR *)(recvbuf + OFFSET_PACKAGE_CMD);
-		LogDebug("[%s:%s %u]  Recv XDStatic Cmd=0x%.2x \n", __FILE__, __func__, __LINE__,  *(pRecvCmd));
+		LogDebug("[%s:%s %u]  Recv XDStatic [Cmd=0x%.2x] \n", __FILE__, __func__, __LINE__,  *(pRecvCmd));
 		PackNum = (recvbuf[HB_ID6] & 0xff) | ((recvbuf[HB_ID7] & 0xff) << 8);
 		LogDebug("[%s:%s %u]  Total_PackNum = %d\n", __FILE__, __func__, __LINE__, PackNum);
 		mDownloadFlag = 1;
@@ -976,7 +990,7 @@ int UdpFunc::DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue)
 * 返 回 值：
 * 备    注: 利用环境变量存储图像数量
 *********************************************************/
-void UdpFunc::UdpSendImage()
+int UdpFunc::UdpSendImage()
 {
 	UCHAR * pImage = NULL;
 	UINT packageNo = 0;
@@ -986,7 +1000,8 @@ void UdpFunc::UdpSendImage()
 
 	lImageSize = ReadImageData(pSaveImage);
 	if (-1 == lImageSize) {
-		return;
+		//UploadResponseCmd(CMDD_DUMMPLING);	//szgTest:需要确认
+		return -1;
 	}
 
 	pImage = pSaveImage;
@@ -1013,7 +1028,7 @@ void UdpFunc::UdpSendImage()
 		
 		if (0 != UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE)) {
 			LogError("[%s:%s %u]=== UDP_SEND failed!", __FILE__, __func__, __LINE__);
-			return;
+			return -2;
 		}
 		packageNo++;
 		pImage += TMP_BUFFER_SIZE;
@@ -1022,11 +1037,13 @@ void UdpFunc::UdpSendImage()
 
 	//判断保存的图像是否读取完毕，发个消息给上位机
 	if (1 == mFrameImageFlag) {
-		mReadNum = 0;
+		if (m_ParaInfo.FrameNum > 0)
+			mReadNum = m_ParaInfo.FrameNum - 1;
 		LogDebug("[%s:%s %u]  ===Read Complete!!!! \n", __FILE__, __func__, __LINE__);
 		//UploadResponseCmd(CMDD_DUMMPLING);	//szgTest:需要确认
-		return;
+		return 0;
 	}
+	return 0;
 }
 
 void UdpFunc::UdpFuncInit()
@@ -1111,7 +1128,7 @@ void UdpFunc::run()
 			if ((*(m_pRecvCmd) == RECV_TYPE_Firmware_Update) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_GAIN) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_DEFECT)) {
 				//屏蔽不必要的打印
 			}else {
-				LogDebug("[%s:%s %u]  Recv XDStatic Cmd=0x%.2x \n", __FILE__, __func__, __LINE__,  *(m_pRecvCmd));
+				LogDebug("[%s:%s %u]  Recv XDStatic [Cmd=0x%.2x] \n", __FILE__, __func__, __LINE__,  *(m_pRecvCmd));
 			}
 							
 			switch (*(m_pRecvCmd)) {
@@ -1164,9 +1181,11 @@ void UdpFunc::run()
 						UploadResponseCmd(CMDD_PACKET_RETRANS);			
 					}
 					break;
-				case 0xf8: //szgTest:需要确认
+				case 0x01: //szgTest:需要确认
 					//读取EMMC图像 
-					//UdpSendImage();
+					if (0 == UdpSendImage()) {
+						UploadStateCmd(CMDU_REPORT, FPD_STATUS_READY);
+					}
 					break;
 				default:
 					break;

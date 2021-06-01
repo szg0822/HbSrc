@@ -109,6 +109,7 @@ typedef struct ParameterInfo
 	UINT defect;
 	UINT SaturationV;			//饱和度
 	UINT PanelSize;				//平板像素大小的选择
+	UINT FrameNum;				//要读取探测器内部自动存储图像的编号，默认为1
 }parameter_t;
 
 
@@ -264,7 +265,7 @@ public:
 	* 返 回 值：
 	* 备    注: 利用环境变量存储图像数量
 	*********************************************************/
-	void UdpSendImage();
+	int UdpSendImage();
 
 	UCHAR *p_bram_state; 		//映射的状态数据地址
 	UCHAR *p_bram_parameter; 	//映射的参数数据地址
