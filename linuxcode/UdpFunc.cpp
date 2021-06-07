@@ -58,6 +58,7 @@ static UINT mFrameNum = 0;			//帧号，图片数量
 static UINT mReadNum = 0;			//读取EMMC图像数量
 static UINT mFrameImageFlag = 0;	//是否读取完成；1：完成
 static UINT m_FrameCount = 0;		//存储在文件里的图像数量
+static UINT m_FraCount = 0;
 
 // typedef struct defect {
 	// unsigned de:8;
@@ -221,7 +222,7 @@ void GetImageCount(UINT * ImageCount)
 * 返 回 值：0：成功；!0：失败
 * 备    注:
 *********************************************************/
-int UdpFunc::SaveImageData(UCHAR *pImage, int ImageSize, UINT FrameNum)
+int UdpFunc::SaveImageData(UCHAR *pImage, int ImageSize)
 {
 	FILE *fp;
 	char mBuf[50];
@@ -237,14 +238,14 @@ int UdpFunc::SaveImageData(UCHAR *pImage, int ImageSize, UINT FrameNum)
 	pSaveBuf = (UINT *)pImage;
 	
 	//每次开机后需要存图时，先删除旧图
-	if (0 == FrameNum) {
+	if (0 == m_FraCount) {
 		sprintf(lCmdBuf, "rm -f %s/*", RAW_IMAGE_PATH);
 		system(lCmdBuf);
 	}
 
-	sprintf(Nbuf, RAW_IMAGE_PATH"Image%d.raw", FrameNum);
+	sprintf(Nbuf, RAW_IMAGE_PATH"Image%d.raw", m_FraCount);
 	//把图像数量保存到文件
-	StoreImageCount(FrameNum + 1);
+	StoreImageCount(m_FraCount + 1);
 
 	if((fp=fopen(Nbuf,"wt+"))==NULL)
 	{
@@ -253,7 +254,8 @@ int UdpFunc::SaveImageData(UCHAR *pImage, int ImageSize, UINT FrameNum)
 	}
 	fwrite(pSaveBuf, sizeof(UINT), ImageSize / 4, fp);			
 	fclose(fp);
-	LogDebug("[%s:%s %u]  SaveImageData[%d] Successfun!  \n", __FILE__, __func__, __LINE__, FrameNum + 1);
+	LogDebug("[%s:%s %u]  SaveImageData[%d] Successfun!  \n", __FILE__, __func__, __LINE__, m_FraCount + 1);
+	m_FraCount++;
 
 	return 0;
 }
@@ -276,7 +278,9 @@ int UdpFunc::ReadImageData(UCHAR *pImage)
 		mFrameImageFlag = 0;
 	}
 
-	m_ParaInfo.FrameNum = m_ParaInfo.offset;   //test
+	if (0 == m_ParaInfo.FrameNum) {
+		m_ParaInfo.FrameNum = 1;
+	}
 	//从一个指定帧号(n-1)开始读取,默认必须为1
 	if (ImageNum != m_ParaInfo.FrameNum) {
 		if (m_ParaInfo.FrameNum > 0) {
@@ -539,6 +543,7 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	UINT PanelSize = 1;
 	UINT SV = 100;
 	int m_ret = 0;
+	UINT SaveEmmc = 0;
 
 	UCHAR *pImageOffset = NULL;
 	UCHAR *pImageGain = NULL;
@@ -549,6 +554,7 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	defect = ParaInfo.defect;
 	PanelSize = ParaInfo.PanelSize;
 	SV = ParaInfo.SaturationV;
+	SaveEmmc = ParaInfo.SaveEMMC;
 
 //安全考虑
 	if ((offset < 0) || (offset > 3)) 
@@ -604,11 +610,12 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	//最终生成的数据
 	pSaveImage = pImage;	
 
-	m_ret = SaveImageData(pSaveImage, ImageSize, mFrameNum);
-	if (0 != m_ret) {
-		LogError("[%s:%s %u]=== SaveImageData error! ret=%d\n", __FILE__, __func__, __LINE__, m_ret);
+	if (1 == SaveEmmc) {
+		m_ret = SaveImageData(pSaveImage, ImageSize);
+		if (0 != m_ret) {
+			LogError("[%s:%s %u]=== SaveImageData error! ret=%d\n", __FILE__, __func__, __LINE__, m_ret);
+		}
 	}
-
 	
 	while (1)
 	{	

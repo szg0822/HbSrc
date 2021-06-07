@@ -110,6 +110,7 @@ typedef struct ParameterInfo
 	UINT SaturationV;			//饱和度
 	UINT PanelSize;				//平板像素大小的选择
 	UINT FrameNum;				//要读取探测器内部自动存储图像的编号，默认为1
+	UINT SaveEMMC;				//是否把图片保存在EMMC里；1保存，0不保存
 }parameter_t;
 
 
@@ -215,7 +216,7 @@ public:
 	* 返 回 值：0：成功；!0：失败
 	* 备    注:
 	*********************************************************/
-	int SaveImageData(UCHAR *pImage, int ImageSize, UINT FrameNum);
+	int SaveImageData(UCHAR *pImage, int ImageSize);
 
 	/*********************************************************
 	* 函 数 名: ReadImageData

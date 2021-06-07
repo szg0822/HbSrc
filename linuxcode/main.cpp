@@ -82,6 +82,11 @@ static void GetBramParameter()
 	m_ParaInfo.PanelSize = *(pBramParameter + OFFSET_PARAMETER_PANELSIZE);
 
 //要读取探测器内部自动存储图像的编号，默认为1
+
+	udpfunc.MyMemcpy(tmpSVBuf, (pBramParameter + 523), 2);	
+	m_ParaInfo.SaveEMMC = tmpSVBuf[0] << 8 | tmpSVBuf[1];
+	udpfunc.MyMemcpy(tmpSVBuf, (pBramParameter + 283), 4);		//Test CMOSConf 12h 需要配置整形变量，默认为1
+	m_ParaInfo.FrameNum = tmpSVBuf[0] << 24 | tmpSVBuf[1] << 16 | tmpSVBuf[2] << 8 | tmpSVBuf[3];
 	//m_ParaInfo.FrameNum = *(pBramParameter + 333);
 
 }
@@ -127,9 +132,9 @@ static void UdpSend()
 			}
 			case 5: {
 				memset(pBramState, 0xff, BRAM_SIZE_STATE);
-				LogDebug("[%s:%s %u]  Recv Fpga 0x05, SINGLE_SHORT\n Offset=%d, Gain=%d, Defect=%d, PSize=%d, SV=%d, FreamNum=%d\n", \
+				LogDebug("[%s:%s %u]  Recv Fpga 0x05, SINGLE_SHORT: Offset=%d, Gain=%d, Defect=%d, PSize=%d, SV=%d, FreamNum=%d, Sav=%d\n", \
 						__FILE__, __func__, __LINE__, m_ParaInfo.offset, m_ParaInfo.gain, m_ParaInfo.defect, m_ParaInfo.PanelSize, \
-						m_ParaInfo.SaturationV, m_ParaInfo.FrameNum);
+						m_ParaInfo.SaturationV, m_ParaInfo.FrameNum, m_ParaInfo.SaveEMMC);
 				if (0 == udpfunc.UploadImageData(CMDU_UPLOAD_IMAGE_SINGLE_SHOT, m_ParaInfo)) {
 					udpfunc.UploadStateCmd(CMDU_REPORT, FPD_STATUS_READY);
 				}
