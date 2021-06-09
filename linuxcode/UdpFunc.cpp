@@ -1107,8 +1107,6 @@ void UdpFunc::run()
 	
 	LogDebug("[%s:%s %u]  UdpFunc RUN \n", __FILE__, __func__, __LINE__);
 	memset(recvbuf, 0x00, PC_SENDBUF_SIZE + 3);
-
-	
 	
 	while(1){
 		length = UDP_RECV((UCHAR *)recvbuf, PACKET_MAX_SIZE);
@@ -1199,6 +1197,9 @@ void UdpFunc::run()
 			}
 		
 			memset(recvbuf, 0x00, PC_SENDBUF_SIZE + 3);		//用完清空
+		}
+		else {
+			LogError("[%s:%s %u]  recv ret=%d \n", __FILE__, __func__, __LINE__, length);
 		}
 	}
                           

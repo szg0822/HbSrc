@@ -12,7 +12,7 @@
 #define FD_N	2
 
 //0:wired; 1:wireless
-static int use = 0;
+static int m_use = 0;
 
 static int Wired_ret1 = 0;
 static int Wireless_ret2 = 0;
@@ -130,7 +130,7 @@ int MyUDP::UDP_CLOSE(void)
 		// else if (Wireless_ret2 > 0)
 			// m_udpfd = Wireless_fd2;
 
-		if (close(fd_w[use])< 0)	{//关闭套接字 
+		if (close(fd_w[m_use])< 0)	{//关闭套接字 
 			LogError("[%s:%s %u]  closesocket failed \n", __FILE__, __func__, __LINE__);
 			return ERR_WSAERROR;
 		}
@@ -166,7 +166,7 @@ int MyUDP::UDP_SEND(unsigned char *szBuff, int nSize)
 	// else if (Wireless_ret2 > 0)
 		// m_udpfd = Wireless_fd2;
 		
-	u = use;
+	u = m_use;
 
 	if (sendto(fd_w[u], szBuff, nSize, 0, (sockaddr *)&dstAddr, sizeof(struct sockaddr)) < 0) {
 		int lasterror = errno;
@@ -241,7 +241,11 @@ int MyUDP::UDP_RECV(unsigned char *szBuff, int nSize)
 		for (int i = 0; i < FD_N; i++) {
 			if (FD_ISSET(fd_w[i], &rfd)) {
 				nlen = recvfrom(fd_w[i], szBuff, nSize, 0, (sockaddr *)&dstAddr,(socklen_t*) &getlen);	
-				use = i;		
+				if (nlen < 0) {
+					LogError("[%s:%s %u]  recvfrom failed,because of %s \n", __FILE__, __func__, __LINE__, strerror(errno));
+					return -3;
+				}
+				m_use = i;		
 			}
 		}
 	}
