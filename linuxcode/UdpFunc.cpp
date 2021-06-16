@@ -14,6 +14,8 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <time.h>
+#include <sys/time.h>
 
 #include "UdpFunc.h"
 #include "LinuxLog.h"
@@ -58,7 +60,8 @@ static UINT mFrameNum = 0;			//帧号，图片数量
 static UINT mReadNum = 0;			//读取EMMC图像数量
 static UINT mFrameImageFlag = 0;	//是否读取完成；1：完成
 static UINT m_FrameCount = 0;		//存储在文件里的图像数量
-static UINT m_FraCount = 0;
+static UINT m_FraCount = 0;			//图像开始编号
+static UINT m_RNum = 1;
 
 // typedef struct defect {
 	// unsigned de:8;
@@ -68,6 +71,15 @@ static UINT m_FraCount = 0;
 // static defect_t * Pdefect = NULL;
 
 static UINT ImageNum = 1;		//保存上一张图像编号
+
+//低功耗
+static struct timeval m_start;
+static UCHAR PowerBuf[PC_SENDBUF_SIZE + 3] = { 0 };	//保存配置
+static int m_time = 600;		//600秒=10m
+static struct timeval m_end;
+static UINT m_PowerDownFlag = 0;
+static UINT m_PowerOnFlag = 0;
+
 
 //大小端转换32位
 #define BSWAP_32(x) \   
@@ -129,7 +141,7 @@ void UdpFunc::CreateCmd(TCmdID cmdID, UCHAR * pStatusCode)
 {	
 	int i = 0;
 
-	memset(pSendBuf,0,PACKET_MAX_SIZE + 1);
+	memset(pSendBuf,0,PACKET_PL_SIZE + 1);
 	pSendBuf[i++] = 0xaa;
 	pSendBuf[i++] = 0xbb;
 	pSendBuf[i++] = 0xcc;
@@ -172,12 +184,11 @@ void UdpFunc::CreateCmd(TCmdID cmdID, UCHAR * pStatusCode)
 *********************************************************/
 int UdpFunc::UploadParameterData(TCmdID cmdID)
 {
-	memset(pSendBuf, 0x00, PACKET_MAX_SIZE + 1);
 	CreateCmd(cmdID, NULL);
 	MyMemcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], p_bram_parameter, TMP_BUFFER_SIZE);
 
 	if (0 != UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE)) {
-		LogError("[%s:%s %u]  UDP_SEND failed! \n", __FILE__, __func__, __LINE__);
+		//LogError("[%s:%s %u]  UDP_SEND failed! \n", __FILE__, __func__, __LINE__);
 		return -1;
 	}
 	return 0;
@@ -241,6 +252,7 @@ int UdpFunc::SaveImageData(UCHAR *pImage, int ImageSize)
 	if (0 == m_FraCount) {
 		sprintf(lCmdBuf, "rm -f %s/*", RAW_IMAGE_PATH);
 		system(lCmdBuf);
+		StoreImageCount(0);
 	}
 
 	sprintf(Nbuf, RAW_IMAGE_PATH"Image%d.raw", m_FraCount);
@@ -286,6 +298,7 @@ int UdpFunc::ReadImageData(UCHAR *pImage)
 		if (m_ParaInfo.FrameNum > 0) {
 			mReadNum = m_ParaInfo.FrameNum - 1;
 			ImageNum = m_ParaInfo.FrameNum;
+			m_RNum = mReadNum + 1; 
 		}
 	}
 
@@ -644,7 +657,6 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 		pImage += TMP_BUFFER_SIZE;
 	}
 	LogDebug("[%s:%s %u]  UploadImageData success! \n", __FILE__, __func__, __LINE__);
-
 	mFrameNum++;		//帧号
 	return 0;
 }
@@ -676,7 +688,13 @@ int UdpFunc::UploadResponseCmd(TCmdID cmdID)
 *********************************************************/
 int UdpFunc::UploadStateCmd(TCmdID cmdID, UCHAR chStatusCode)
 {
+	UINT FrameCount = 0;
+	FrameCount = mFrameNum - 1;
 	CreateCmd(cmdID, &chStatusCode);
+	//帧号
+	pSendBuf[HB_ID1] = (FrameCount ) & 0xff;
+	pSendBuf[HB_ID2] = (FrameCount >> 8) & 0xff;
+	pSendBuf[HB_ID3] = (FrameCount >> 16) & 0xff;
 	if (0 != UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE)) {
 		LogError("[%s:%s %u]=== UDP_SEND failed!", __FILE__, __func__, __LINE__);
 		return -1;
@@ -995,7 +1013,7 @@ int UdpFunc::DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue)
 * 功能描述: 把保存图像数据发送给上位机
 * 参数说明: 	
 * 返 回 值：
-* 备    注: 利用环境变量存储图像数量
+* 备    注: 利用文件存储图像数量
 *********************************************************/
 int UdpFunc::UdpSendImage()
 {
@@ -1014,6 +1032,12 @@ int UdpFunc::UdpSendImage()
 	pImage = pSaveImage;
 	ImageLen = lImageSize / 2;
 
+	//帧号+1
+	m_RNum = mReadNum;
+	if (1 == mFrameImageFlag) {
+		m_RNum = m_FrameCount;
+	}	
+
 	while(1)
 	{	
 		//一帧图像（3072*3072）像素点，然后除以512得出18432k，1K组一个包发送
@@ -1022,10 +1046,14 @@ int UdpFunc::UdpSendImage()
 		}
 		
 		CreateCmd(CMDU_UPLOAD_IMAGE_SINGLE_SHOT, NULL);	//szgTest:需要确认
-		//帧号
-		pSendBuf[HB_ID1] = (mFrameNum ) & 0xff;
-		pSendBuf[HB_ID2] = (mFrameNum >> 8) & 0xff;
-		pSendBuf[HB_ID3] = (mFrameNum >> 16) & 0xff;
+		//序号
+		pSendBuf[HB_ID1] = (m_RNum ) & 0xff;
+		pSendBuf[HB_ID2] = (m_RNum >> 8) & 0xff;
+		pSendBuf[HB_ID3] = (m_RNum >> 16) & 0xff;
+		//图像总数量
+		pSendBuf[HB_ID4] = (m_FrameCount ) & 0xff;
+		pSendBuf[HB_ID5] = (m_FrameCount >> 8) & 0xff;
+		pSendBuf[HB_ID6] = (m_FrameCount >> 16) & 0xff;
 		//包号
 		pSendBuf[HB_ID7] = (packageNo ) & 0xff;
 		pSendBuf[HB_ID8] = (packageNo >> 8) & 0xff;
@@ -1048,13 +1076,14 @@ int UdpFunc::UdpSendImage()
 			mReadNum = m_ParaInfo.FrameNum - 1;
 		LogDebug("[%s:%s %u]  ===Read Complete!!!! \n", __FILE__, __func__, __LINE__);
 		//UploadResponseCmd(CMDD_DUMMPLING);	//szgTest:需要确认
-		return 0;
 	}
 	return 0;
 }
 
 void UdpFunc::UdpFuncInit()
 {
+	UINT * pTmp = NULL;
+	UINT *pPowerDown = NULL;
 #if 1
 	//UDP连接有线
 	char SrcWriedIp[MAX_IP_LEN] = "192.168.0.40";
@@ -1067,7 +1096,7 @@ void UdpFunc::UdpFuncInit()
 	}
 #endif	
 	//组包后临时存放的地址
-	pSendBuf= (UCHAR *)malloc(PACKET_MAX_SIZE + 1);
+	pSendBuf= (UCHAR *)malloc(PACKET_PL_SIZE + 1);
 
 	pSaveImage = (UCHAR *)malloc(BRAM_SIZE_IMAGE);	//最终保存的图片数据
 	memset(pSaveImage, 0x00, BRAM_SIZE_IMAGE);
@@ -1089,6 +1118,201 @@ void UdpFunc::UdpFuncInit()
 		fclose(fpFile);
 		FileGainFlag = 0;
 	}
+
+	//INIT低功耗配置为0
+	CreateCmd(CMDD_WRITE_PARA, NULL);
+	MyMemcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], p_bram_parameter, TMP_BUFFER_SIZE);
+	MyMemcpy(PowerBuf, pSendBuf, PACKET_PL_SIZE);
+	//LogError("[%s:%s %u]  recv:buf7=%x,buf8=%x \n", __FILE__, __func__, __LINE__, pPowerDown[19+447], pPowerDown[19+448]);
+	//发送给PL
+	PowerBuf[19 + 438] = 0x01;		//修改配置开关；1：可以修改，0：不能修改
+	PowerBuf[19 + 447] = 0x00;
+	PowerBuf[19 + 448] = 0x00;
+	pPowerDown = (UINT *)PowerBuf;		//保存之前的配置
+	pTmp = (UINT *)p_bram_parameter;
+	for (int i = 0; i < 1052 / 4; i++) {
+		pTmp[i] = pPowerDown[i];
+	}	
+}
+
+//获取当前时间
+void UdpFunc::GetStartTime()
+{
+	gettimeofday(&m_start, NULL);
+}
+
+/*********************************************************
+* 函 数 名: InputLowerPower
+* 功能描述: 进入低功耗模式或休眠
+* 参数说明: 	
+* 返 回 值：
+* 备    注: 
+*********************************************************/
+void UdpFunc::InputLowerPower()
+{
+	UINT * pTmp = NULL;
+	UINT *pPowerDown = NULL;
+	ULONG diff = 0;
+
+	gettimeofday(&m_end, NULL);
+	diff = 1000000 * (m_end.tv_sec-m_start.tv_sec) + m_end.tv_usec - m_start.tv_usec;
+
+	//Power Down
+	if (1 == m_PowerDownFlag) {
+		m_PowerDownFlag = 0;
+		diff = m_time * CLOCKS_PER_SEC;
+	}
+
+	if (diff >= (m_time * CLOCKS_PER_SEC)) {
+		//LogError("[%s:%s %u]  ==========================Test:time=%ld \n", __FILE__, __func__, __LINE__, diff);
+		//读取Fpga数据，组包发送Fpga
+		CreateCmd(CMDD_WRITE_PARA, NULL);
+		MyMemcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], p_bram_parameter, TMP_BUFFER_SIZE);
+		MyMemcpy(PowerBuf, pSendBuf, PACKET_PL_SIZE);				
+		//发送给PL
+		PowerBuf[19 + 438] = 0x01;		//修改配置开关；1：可以修改，0：不能修改
+		PowerBuf[19 + 447] = 0xFF;
+		PowerBuf[19 + 448] = 0xBF;
+		pPowerDown = (UINT *)PowerBuf;		//保存之前的配置
+		pTmp = (UINT *)p_bram_parameter;
+		for (int i = 0; i < 1052 / 4; i++) {
+			pTmp[i] = pPowerDown[i];
+		}
+		UploadStateCmd(CMDU_REPORT, FPD_STATUS_SLEEP);	
+	}
+}
+
+/*********************************************************
+* 函 数 名: AwakenLowerPower
+* 功能描述: 唤醒低功耗模式
+* 参数说明: 	
+* 返 回 值：
+* 备    注: 
+*********************************************************/
+void UdpFunc::AwakenLowerPower()
+{
+	FILE *fp = NULL;
+	int value = 1;
+	UINT *pPowerDown = NULL;
+	UINT *pTmp = NULL;
+
+	fp = fopen("/sys/class/gpio/gpio344/value", "r");
+	if (NULL == fp) {
+		LogError("[%s:%s %u]  fopen</sys/class/gpio/gpio344/value> fail! \n", __FILE__, __func__, __LINE__);
+	}else {
+		fscanf(fp, "%d", &value);
+		LogError("[%s:%s %u]  value=%d \n", __FILE__, __func__, __LINE__, value);
+		fclose(fp);
+
+		//Power On
+		if (1 == m_PowerOnFlag) {
+			m_PowerOnFlag = 0;
+			value = 0;
+		}
+		if (0 == value) {
+			//读取Fpga数据，组包发送Fpga
+			CreateCmd(CMDD_WRITE_PARA, NULL);
+			MyMemcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], p_bram_parameter, TMP_BUFFER_SIZE);
+			MyMemcpy(PowerBuf, pSendBuf, PACKET_PL_SIZE);
+			//发送给PL
+			PowerBuf[19 + 438] = 0x01;		//修改配置开关；1：可以修改，0：不能修改
+			PowerBuf[19 + 447] = 0x00;
+			PowerBuf[19 + 448] = 0x00;
+			pPowerDown = (UINT *)PowerBuf;		//保存之前的配置
+			pTmp = (UINT *)p_bram_parameter;
+			for (int i = 0; i < 1052 / 4; i++) {
+				pTmp[i] = pPowerDown[i];
+			}	
+			UploadStateCmd(CMDU_REPORT, FPD_STATUS_WAKEUP);	
+		}
+	}
+}
+
+//switch太多，封装一个接口
+void UdpFunc::MySwitch(UCHAR RCmd, UCHAR *pRecvBuf)
+{
+	UCHAR m_SCode = FPD_STATUS_READY;
+	switch (RCmd) {
+		case RECV_TYPE_ERASE_FLASH:
+			//擦除frame（每次update，都会先发一次0x4f；我这里只做回应）
+			UploadResponseCmd(CMDD_FRAME_RETRANS);
+			//上一次update失败后，下一次需要恢复参数数据
+			mPackCount = 0;
+			if (NULL != pUpdatedata) {
+				free(pUpdatedata);
+				pUpdatedata = NULL;
+			}
+			pUpdatedata = (UCHAR *)malloc(UPDATE_DATA_BUF_SIZE);
+			memset(pUpdatedata, 0xff, UPDATE_DATA_BUF_SIZE);
+			pTail = pUpdatedata;
+			//flag	
+			mUpPackNumFlag = 0;
+			mUpSuccess = 0;	
+			break;
+		case RECV_TYPE_Firmware_Update:
+			//Update FPGA File
+			if ( 0 == Update_SaveFile(pRecvBuf)) {
+				UploadResponseCmd(CMDD_PACKET_RETRANS);
+				if (1 == mUpSuccess) {
+					Update_FpgaFile();
+					if (NULL != pUpdatedata) {
+						free(pUpdatedata);
+						pUpdatedata = NULL;
+					}
+				}
+			}		
+			break;
+		case RECV_TYPE_PACKET_RETRANS:
+			//丢包重传
+			PacketRetransmission(pRecvBuf);
+			break;
+		case RECV_TYPE_FRAME_RETRANS:
+			//整帧重传
+			FrameRetransmission();
+			break;
+		case RECV_TYPE_DOWNLOAD_GAIN:
+			//下载Gain校正模板
+			if (0 == DownloadCurrencyTemplate(pRecvBuf, 1)) {
+				UploadResponseCmd(CMDD_PACKET_RETRANS);			
+			}
+			break;
+		case RECV_TYPE_DOWNLOAD_DEFECT:
+			//下载Defect校正模板
+			if (0 == DownloadCurrencyTemplate(pRecvBuf, 2)) {
+				UploadResponseCmd(CMDD_PACKET_RETRANS);			
+			}
+			break;
+		case 0x0C: //szgTest:需要确认
+			//读取EMMC图像 
+			if (0 == UdpSendImage()) {
+				CreateCmd(CMDU_REPORT, &m_SCode);																			
+				m_RNum = mReadNum;
+				if (1 == mFrameImageFlag) {
+					m_RNum = m_FrameCount;
+				}	
+				//帧号+1					
+				pSendBuf[HB_ID1] = (m_RNum ) & 0xff;
+				pSendBuf[HB_ID2] = (m_RNum >> 8) & 0xff;
+				pSendBuf[HB_ID3] = (m_RNum >> 16) & 0xff;
+				//图像总数量
+				pSendBuf[HB_ID4] = (m_FrameCount ) & 0xff;
+				pSendBuf[HB_ID5] = (m_FrameCount >> 8) & 0xff;
+				pSendBuf[HB_ID6] = (m_FrameCount >> 16) & 0xff;
+				UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE);
+			}
+			break;
+		case 0x0D:
+			//power down					
+			m_PowerDownFlag = 1;					
+			break;
+		case 0x0E:	
+			//power on
+			m_PowerOnFlag = 1;
+			break;
+		default:
+			break;
+	}
+
 }
 
 void UdpFunc::run()
@@ -1099,18 +1323,22 @@ void UdpFunc::run()
 	UCHAR *m_pRecvCmd;  //接收的CMD
 	UCHAR recvbuf[PC_SENDBUF_SIZE + 3] = { 0 };
 	int TmpPrint = 0;
-	FILE *fp;
+	FILE *fp = NULL;
 	UINT *pTmpPara = NULL;
 	UINT *pTmprecvbuf = NULL;
+
+	gettimeofday(&m_start, NULL);
 
 	UdpFuncInit();
 	
 	LogDebug("[%s:%s %u]  UdpFunc RUN \n", __FILE__, __func__, __LINE__);
 	memset(recvbuf, 0x00, PC_SENDBUF_SIZE + 3);
 	
-	while(1){
+	while(1){	
 		length = UDP_RECV((UCHAR *)recvbuf, PACKET_MAX_SIZE);
 		if (length == PC_SENDBUF_SIZE) {
+			gettimeofday(&m_start, NULL);
+
 			m_pRecvCmd = (UCHAR *)(recvbuf + OFFSET_PACKAGE_CMD); //CMD
 
 			p_bram_parameter = p_bram_tail + 0x1000;		//FPGA_ADDRESS+1000
@@ -1125,7 +1353,7 @@ void UdpFunc::run()
 				pTmpPara = (UINT *)p_bram_parameter;
 				pTmprecvbuf = (UINT *)recvbuf;
 				for(int i = 0; i < 1052 / 4; i++) {
-					pTmpPara[i] = pTmprecvbuf[i];
+					pTmpPara[i] = pTmprecvbuf[i]; //每次4个字节透传
 				}
 			}
 			
@@ -1135,71 +1363,19 @@ void UdpFunc::run()
 			}else {
 				LogDebug("[%s:%s %u]  Recv XDStatic [Cmd=0x%.2x] \n", __FILE__, __func__, __LINE__,  *(m_pRecvCmd));
 			}
-							
-			switch (*(m_pRecvCmd)) {
-				case RECV_TYPE_ERASE_FLASH:
-					//擦除frame（每次update，都会先发一次0x4f；我这里只做回应）
-					UploadResponseCmd(CMDD_FRAME_RETRANS);
-					//上一次update失败后，下一次需要恢复参数数据
-					mPackCount = 0;
-					if (NULL != pUpdatedata) {
-						free(pUpdatedata);
-						pUpdatedata = NULL;
-					}
-					pUpdatedata = (UCHAR *)malloc(UPDATE_DATA_BUF_SIZE);
-					memset(pUpdatedata, 0xff, UPDATE_DATA_BUF_SIZE);
-					pTail = pUpdatedata;
-					//flag	
-					mUpPackNumFlag = 0;
-					mUpSuccess = 0;	
-					break;
-				case RECV_TYPE_Firmware_Update:
-					//Update FPGA File
-					if ( 0 == Update_SaveFile(recvbuf)) {
-						UploadResponseCmd(CMDD_PACKET_RETRANS);
-						if (1 == mUpSuccess) {
-							Update_FpgaFile();
-							if (NULL != pUpdatedata) {
-								free(pUpdatedata);
-								pUpdatedata = NULL;
-							}
-						}
-					}		
-					break;
-				case RECV_TYPE_PACKET_RETRANS:
-					//丢包重传
-					PacketRetransmission(recvbuf);
-					break;
-				case RECV_TYPE_FRAME_RETRANS:
-					//整帧重传
-					FrameRetransmission();
-					break;
-				case RECV_TYPE_DOWNLOAD_GAIN:
-					//下载Gain校正模板
-					if (0 == DownloadCurrencyTemplate(recvbuf, 1)) {
-						UploadResponseCmd(CMDD_PACKET_RETRANS);			
-					}
-					break;
-				case RECV_TYPE_DOWNLOAD_DEFECT:
-					//下载Defect校正模板
-					if (0 == DownloadCurrencyTemplate(recvbuf, 2)) {
-						UploadResponseCmd(CMDD_PACKET_RETRANS);			
-					}
-					break;
-				case 0x01: //szgTest:需要确认
-					//读取EMMC图像 
-					if (0 == UdpSendImage()) {
-						UploadStateCmd(CMDU_REPORT, FPD_STATUS_READY);
-					}
-					break;
-				default:
-					break;
-			}
-		
-			memset(recvbuf, 0x00, PC_SENDBUF_SIZE + 3);		//用完清空
+			MySwitch(*(m_pRecvCmd), recvbuf);				
+			memset(recvbuf, 0x00, PC_SENDBUF_SIZE + 3);             //用完清空		
 		}
 		else {
-			LogError("[%s:%s %u]  recv ret=%d \n", __FILE__, __func__, __LINE__, length);
+			if (0 == PowerBuf[19 + 447]) {
+				//进入低功耗模式
+				InputLowerPower();
+			}
+			else {
+				//唤醒低功耗
+				gettimeofday(&m_start, NULL);
+				AwakenLowerPower();
+			}
 		}
 	}
                           

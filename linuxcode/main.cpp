@@ -82,12 +82,14 @@ static void GetBramParameter()
 	m_ParaInfo.PanelSize = *(pBramParameter + OFFSET_PARAMETER_PANELSIZE);
 
 //要读取探测器内部自动存储图像的编号，默认为1
-
 	udpfunc.MyMemcpy(tmpSVBuf, (pBramParameter + 523), 2);	
 	m_ParaInfo.SaveEMMC = tmpSVBuf[0] << 8 | tmpSVBuf[1];
 	udpfunc.MyMemcpy(tmpSVBuf, (pBramParameter + 283), 4);		//Test CMOSConf 12h 需要配置整形变量，默认为1
 	m_ParaInfo.FrameNum = tmpSVBuf[0] << 24 | tmpSVBuf[1] << 16 | tmpSVBuf[2] << 8 | tmpSVBuf[3];
-	//m_ParaInfo.FrameNum = *(pBramParameter + 333);
+
+//低功耗参数
+	udpfunc.MyMemcpy(tmpSVBuf, (pBramParameter + 447), 2);
+	m_ParaInfo.PowerDown = tmpSVBuf[0] << 8 | tmpSVBuf[1];
 
 }
 
@@ -101,8 +103,6 @@ static void GetBramParameter()
 static void UdpSend()
 {
 	LogDebug("[%s:%s %u]  Wait Fpga .... \n", __FILE__, __func__, __LINE__);
-
-	int RebootFlag = 0;			//开机FPGA会主动读取一次配置，需要屏蔽
 	
 	memset(&m_ParaInfo, 0, sizeof(parameter_t));
 
@@ -112,26 +112,22 @@ static void UdpSend()
 		switch (pBramState[0]) {
 			case 3: {
 				memset(pBramState, 0xff, BRAM_SIZE_STATE);
-				//开机FPGA会主动读取一次配置，需要屏蔽
-				if (1 == RebootFlag) {
-					LogDebug("[%s:%s %u]  Recv Fpga 0x03, Parameter \n", __FILE__, __func__, __LINE__);
-					if (0 == udpfunc.UploadParameterData(CMDU_SYSPARA_REPORT))
-						LogDebug("[%s:%s %u]  UploadParameterData success!  \n", __FILE__, __func__, __LINE__);
-					GetBramParameter();  //获取参数
-				}
-				else if (0 == RebootFlag) {
-					LogDebug("[%s:%s %u]  Recv Fpga 0x03, reboot don't do it\n", __FILE__, __func__, __LINE__);
-					RebootFlag = 1;
-				}
+				udpfunc.GetStartTime();			//任何用户操作，重新开始计时
+				LogDebug("[%s:%s %u]  Recv Fpga 0x03, Parameter \n", __FILE__, __func__, __LINE__);
+				udpfunc.UploadParameterData(CMDU_SYSPARA_REPORT);
+					//LogDebug("[%s:%s %u]  UploadParameterData success!  \n", __FILE__, __func__, __LINE__);
+				GetBramParameter();  //获取参数
 				break;
 			}
 			case 4: {
 				memset(pBramState, 0xff, BRAM_SIZE_STATE);
 				LogDebug("[%s:%s %u]  Recv Fpga 0x04,  \n", __FILE__, __func__, __LINE__);
+				udpfunc.GetStartTime();			//任何用户操作，重新开始计时
 				break;
 			}
 			case 5: {
 				memset(pBramState, 0xff, BRAM_SIZE_STATE);
+				udpfunc.GetStartTime();			//任何用户操作，重新开始计时
 				LogDebug("[%s:%s %u]  Recv Fpga 0x05, SINGLE_SHORT: Offset=%d, Gain=%d, Defect=%d, PSize=%d, SV=%d, FreamNum=%d, Sav=%d\n", \
 						__FILE__, __func__, __LINE__, m_ParaInfo.offset, m_ParaInfo.gain, m_ParaInfo.defect, m_ParaInfo.PanelSize, \
 						m_ParaInfo.SaturationV, m_ParaInfo.FrameNum, m_ParaInfo.SaveEMMC);
@@ -142,18 +138,21 @@ static void UdpSend()
 			}
 			case 6: {
 				memset(pBramState, 0xff, BRAM_SIZE_STATE);
+				udpfunc.GetStartTime();			//任何用户操作，重新开始计时
 				LogDebug("[%s:%s %u]  Recv Fpga 0x06, PREPARE \n", __FILE__, __func__, __LINE__);
 				udpfunc.UploadStateCmd(CMDU_REPORT, FPD_STATUS_PREPARE);
 				break;
 			}
 			case 7: {
 				memset(pBramState, 0xff, BRAM_SIZE_STATE);
+				udpfunc.GetStartTime();			//任何用户操作，重新开始计时
 				LogDebug("[%s:%s %u]  Recv Fpga 0x07, BUSY \n", __FILE__, __func__, __LINE__);
 				udpfunc.UploadStateCmd(CMDU_REPORT, FPD_STATUS_BUSY);
 				break;
 			}
 			case 8: {
 				memset(pBramState, 0xff, BRAM_SIZE_STATE);
+				udpfunc.GetStartTime();			//任何用户操作，重新开始计时
 				LogDebug("[%s:%s %u]  Recv Fpga 0x08,  \n", __FILE__, __func__, __LINE__);
 				//udpfunc.UploadStateCmd(CMDU_REPORT, FPD_STATUS_READY);
 				break;

@@ -17,6 +17,7 @@
 #define ULONG	unsigned long
 
 #define PACKET_MAX_SIZE          1050
+#define PACKET_PL_SIZE           1052
 #define UZID_SIZE 				 9
 #define PC_SENDBUF_SIZE			 1049
 
@@ -46,10 +47,12 @@
 #define FPD_STATUS_READY         0X02  // fpd ready status
 #define FPD_STATUS_AED           0X03  // AED mode,avild image data
 #define FPD_STATUS_PREPARE       0X04  // Software mode,prepare command feedback command
-#define FPD_UPLOAD_GAIN_ANSWER   0X06  // Upload gain template answer
-#define FPD_UPLOAD_DEFECT_ANSWER 0X07  // Upload defect template answer
-#define SINGLE_FRAME_IMAGE_DATA  0X00  // Single frame image data
-#define MULTI_FRAME_IMAGE_DATA   0X01  // Multi frame image data
+#define FPD_STATUS_SLEEP         12  // Power Down
+#define FPD_STATUS_WAKEUP        13  // Power On
+// #define FPD_UPLOAD_GAIN_ANSWER   0X06  // Upload gain template answer
+// #define FPD_UPLOAD_DEFECT_ANSWER 0X07  // Upload defect template answer
+// #define SINGLE_FRAME_IMAGE_DATA  0X00  // Single frame image data
+// #define MULTI_FRAME_IMAGE_DATA   0X01  // Multi frame image data
 
 
 //FPGA地址
@@ -89,6 +92,7 @@ typedef enum tagTCmdID {
 	CMDD_READ_DEVSTATUS = 9, \
 	CMDD_ACK_REPORT = 0x0a, \
 	CMDD_CONFIG_PARA = 0x10, \
+	CMDD_WRITE_PARA= 0x12,\
 	CMDD_READ_PARA= 0x13,\
 	CMDU_ACK_WRONG = 1, \
 	CMDU_ACK_OK = 2, \
@@ -111,6 +115,7 @@ typedef struct ParameterInfo
 	UINT PanelSize;				//平板像素大小的选择
 	UINT FrameNum;				//要读取探测器内部自动存储图像的编号，默认为1
 	UINT SaveEMMC;				//是否把图片保存在EMMC里；1保存，0不保存
+	UINT PowerDown;				//低功耗配置：FFBF；正常：0
 }parameter_t;
 
 
@@ -208,26 +213,6 @@ public:
 	void UdpFuncInit();
 
 	/*********************************************************
-	* 函 数 名: SaveImageData
-	* 功能描述: 保存图像数据
-	* 参数说明: pImage：图像数据	
-	*		   ImageSize:数据大小
-	*		   FrameNum：帧号
-	* 返 回 值：0：成功；!0：失败
-	* 备    注:
-	*********************************************************/
-	int SaveImageData(UCHAR *pImage, int ImageSize);
-
-	/*********************************************************
-	* 函 数 名: ReadImageData
-	* 功能描述: 保存图像数据
-	* 参数说明: Output：[pImage:读取的图像数据]	
-	* 返 回 值：数据长度，失败返回-1
-	* 备    注:
-	*********************************************************/
-	int ReadImageData(UCHAR *pImage);
-
-	/*********************************************************
 	* 函 数 名: CorrectionOffset
 	* 功能描述: Offset固件校正
 	* 参数说明: ImageSize:图片大小
@@ -260,13 +245,62 @@ public:
 	UCHAR *CorrectionDefect(UCHAR * pImage, UINT *ImageLenBuf, UINT PanelSize);
 
 	/*********************************************************
+	* 函 数 名: SaveImageData
+	* 功能描述: 保存图像数据
+	* 参数说明: pImage：图像数据	
+	*		   ImageSize:数据大小
+	*		   FrameNum：帧号
+	* 返 回 值：0：成功；!0：失败
+	* 备    注:
+	*********************************************************/
+	int SaveImageData(UCHAR *pImage, int ImageSize);
+	/*********************************************************
+	* 函 数 名: ReadImageData
+	* 功能描述: 保存图像数据
+	* 参数说明: Output：[pImage:读取的图像数据]	
+	* 返 回 值：数据长度，失败返回-1
+	* 备    注:
+	*********************************************************/
+	int ReadImageData(UCHAR *pImage);
+
+	/*********************************************************
 	* 函 数 名: UdpSendImage
 	* 功能描述: 把保存图像数据发送给上位机
 	* 参数说明: 	
 	* 返 回 值：
-	* 备    注: 利用环境变量存储图像数量
+	* 备    注: 利用文件存储图像数量
 	*********************************************************/
 	int UdpSendImage();
+
+	//获取当前时间
+	void GetStartTime();
+
+	/*********************************************************
+	* 函 数 名: InputLowerPower
+	* 功能描述: 进入低功耗模式或休眠
+	* 参数说明: 	
+	* 返 回 值：
+	* 备    注: 
+	*********************************************************/
+	void InputLowerPower();
+
+	/*********************************************************
+	* 函 数 名: AwakenLowerPower
+	* 功能描述: 唤醒低功耗模式
+	* 参数说明: 	
+	* 返 回 值：
+	* 备    注: 
+	*********************************************************/
+	void AwakenLowerPower();
+
+	/*********************************************************
+	* 函 数 名: MySwitch
+	* 功能描述: 唤醒低功耗模式
+	* 参数说明: RCmd：上位机下发的命令；	pRecvBuf：下发的数据
+	* 返 回 值：
+	* 备    注: 
+	*********************************************************/
+	void MySwitch(UCHAR RCmd, UCHAR *pRecvBuf);
 
 	UCHAR *p_bram_state; 		//映射的状态数据地址
 	UCHAR *p_bram_parameter; 	//映射的参数数据地址

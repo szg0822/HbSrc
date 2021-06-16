@@ -183,7 +183,7 @@ int MyUDP::UDP_SEND(unsigned char *szBuff, int nSize)
 				return ERR_SUCCESS;
 		}
 		else
-			LogError("[%s:%s %u]  lasterror=%d \n", __FILE__, __func__, __LINE__, lasterror);
+			//LogError("[%s:%s %u]  lasterror=%d \n", __FILE__, __func__, __LINE__, lasterror);
 		return ERR_WSAERROR;
 	}
 
@@ -220,7 +220,7 @@ int MyUDP::UDP_RECV(unsigned char *szBuff, int nSize)
 
 	struct timeval udp_tmvl;
 	udp_tmvl.tv_sec = 0;
-	udp_tmvl.tv_usec = 100 * 1000;
+	udp_tmvl.tv_usec = 30 * 1000;
 
 	errno = 0;
 	
