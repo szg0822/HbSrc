@@ -47,8 +47,8 @@
 #define FPD_STATUS_READY         0X02  // fpd ready status
 #define FPD_STATUS_AED           0X03  // AED mode,avild image data
 #define FPD_STATUS_PREPARE       0X04  // Software mode,prepare command feedback command
-#define FPD_STATUS_SLEEP         12  // Power Down
-#define FPD_STATUS_WAKEUP        13  // Power On
+#define FPD_STATUS_SLEEP         12  // Power Down	0x0C
+#define FPD_STATUS_WAKEUP        13  // Power On	0x0D
 // #define FPD_UPLOAD_GAIN_ANSWER   0X06  // Upload gain template answer
 // #define FPD_UPLOAD_DEFECT_ANSWER 0X07  // Upload defect template answer
 // #define SINGLE_FRAME_IMAGE_DATA  0X00  // Single frame image data
@@ -78,6 +78,10 @@
 #define RECV_TYPE_Firmware_Update       0x50     //下发的软件升级的数据包
 #define RECV_TYPE_DOWNLOAD_GAIN       	0x2F     //下载Gain校正模板
 #define RECV_TYPE_DOWNLOAD_DEFECT       0x30     //下载Defect校正模板
+#define RECV_TYPE_DOWNLOAD_IAMGE		0x0C	 //下载保存在EMMC里的图像
+#define RECV_TYPE_POWERDOWN				0x0D	 //进入低功耗模式
+#define RECV_TYPE_POWERON				0x0E	 //唤醒低功耗模式
+#define RECV_TYPE_READ_PARA				0x13	 //读取参数或连接   后面改0x0B
 
 //上位机下发的命令
 typedef enum tagTCmdID {
@@ -295,7 +299,7 @@ public:
 
 	/*********************************************************
 	* 函 数 名: MySwitch
-	* 功能描述: 唤醒低功耗模式
+	* 功能描述: switch太多，封装一个接口
 	* 参数说明: RCmd：上位机下发的命令；	pRecvBuf：下发的数据
 	* 返 回 值：
 	* 备    注: 

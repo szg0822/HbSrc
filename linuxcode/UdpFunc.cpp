@@ -79,6 +79,7 @@ static int m_time = 600;		//600秒=10m
 static struct timeval m_end;
 static UINT m_PowerDownFlag = 0;
 static UINT m_PowerOnFlag = 0;
+static UINT m_ConnectFlag = 0;		//当前如果处于休眠状态，上位机重新连接时需要直接唤醒
 
 
 //大小端转换32位
@@ -186,7 +187,6 @@ int UdpFunc::UploadParameterData(TCmdID cmdID)
 {
 	CreateCmd(cmdID, NULL);
 	MyMemcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], p_bram_parameter, TMP_BUFFER_SIZE);
-
 	if (0 != UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE)) {
 		//LogError("[%s:%s %u]  UDP_SEND failed! \n", __FILE__, __func__, __LINE__);
 		return -1;
@@ -1201,7 +1201,7 @@ void UdpFunc::AwakenLowerPower()
 		LogError("[%s:%s %u]  fopen</sys/class/gpio/gpio344/value> fail! \n", __FILE__, __func__, __LINE__);
 	}else {
 		fscanf(fp, "%d", &value);
-		LogError("[%s:%s %u]  value=%d \n", __FILE__, __func__, __LINE__, value);
+		//LogError("[%s:%s %u]  value=%d \n", __FILE__, __func__, __LINE__, value);
 		fclose(fp);
 
 		//Power On
@@ -1210,6 +1210,7 @@ void UdpFunc::AwakenLowerPower()
 			value = 0;
 		}
 		if (0 == value) {
+			value = 1;
 			//读取Fpga数据，组包发送Fpga
 			CreateCmd(CMDD_WRITE_PARA, NULL);
 			MyMemcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], p_bram_parameter, TMP_BUFFER_SIZE);
@@ -1223,7 +1224,10 @@ void UdpFunc::AwakenLowerPower()
 			for (int i = 0; i < 1052 / 4; i++) {
 				pTmp[i] = pPowerDown[i];
 			}	
-			UploadStateCmd(CMDU_REPORT, FPD_STATUS_WAKEUP);	
+			if (0 == m_ConnectFlag)	
+				UploadStateCmd(CMDU_REPORT, FPD_STATUS_WAKEUP);	
+			else			
+				m_ConnectFlag = 0;
 		}
 	}
 }
@@ -1282,7 +1286,7 @@ void UdpFunc::MySwitch(UCHAR RCmd, UCHAR *pRecvBuf)
 				UploadResponseCmd(CMDD_PACKET_RETRANS);			
 			}
 			break;
-		case 0x0C: //szgTest:需要确认
+		case RECV_TYPE_DOWNLOAD_IAMGE: //szgTest:需要确认
 			//读取EMMC图像 
 			if (0 == UdpSendImage()) {
 				CreateCmd(CMDU_REPORT, &m_SCode);																			
@@ -1301,13 +1305,19 @@ void UdpFunc::MySwitch(UCHAR RCmd, UCHAR *pRecvBuf)
 				UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE);
 			}
 			break;
-		case 0x0D:
+		case RECV_TYPE_POWERDOWN:
 			//power down					
 			m_PowerDownFlag = 1;					
 			break;
-		case 0x0E:	
+		case RECV_TYPE_POWERON:	
 			//power on
 			m_PowerOnFlag = 1;
+			break;
+		case RECV_TYPE_READ_PARA:
+			if (0 != p_bram_parameter[447]) {
+				m_PowerOnFlag = 1;
+				m_ConnectFlag = 1;		//Connect 唤醒低功耗
+			}
 			break;
 		default:
 			break;
