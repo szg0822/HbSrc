@@ -16,6 +16,9 @@
 #include <stdlib.h>
 #include <time.h>
 #include <sys/time.h>
+#include <dirent.h>
+#include <string.h>
+#include <sys/stat.h>
 
 #include "UdpFunc.h"
 #include "LinuxLog.h"
@@ -127,6 +130,65 @@ void *UdpFunc::MyMemcpy(void *dest, const void *src, size_t count)
 	}
 
 	return dest;
+}
+
+/*********************************************************
+ * * 函 数 名: MyDirExist
+ * * 功能描述: 判断目录是否存在
+ * * 参数说明: path:目录路径
+ * * 返 回 值：0:目录存在
+ * * 备    注:             
+ * *********************************************************/
+int MyDirExist(char * path)
+{
+	struct stat statBuf = {0};
+	int pbExist = -1;
+	if(NULL == path)
+	{
+		printf("[%s(),%d] path is NULL!!!", __FUNCTION__, __LINE__);
+		return -1;
+	}
+	memset(&statBuf, 0, sizeof(statBuf));
+	if(0 != stat(path, &statBuf))
+	{
+		return -2;
+	}
+
+	if(S_ISDIR(statBuf.st_mode))
+		pbExist = 0;
+	return pbExist;
+}
+
+/*********************************************************
+ * * 函 数 名: MyMkdir
+ * * 功能描述: 创建多级目录
+ * * 参数说明: muldir:目录
+ * * 返 回 值：
+ * * 备    注:  
+ * *********************************************************/
+static void MyMkdir(char *muldir)
+{
+    int i,len;
+    char str[512];
+    strncpy(str, muldir, 512);
+    len=strlen(str);
+    for( i=0; i<len; i++ )
+    {
+        if( str[i]=='/' )
+        {
+            str[i] = '\0';
+            if( access(str,0)!=0 )
+            {
+                mkdir( str, 0755 );
+            }
+            str[i]='/';
+        }
+    }
+    if( len>0 && access(str,0)!=0 )
+    {
+        mkdir( str, 0777 );
+    }
+    return;
 }
 
 
@@ -1084,6 +1146,7 @@ void UdpFunc::UdpFuncInit()
 {
 	UINT * pTmp = NULL;
 	UINT *pPowerDown = NULL;
+	int m_mkdir = -1;
 #if 1
 	//UDP连接有线
 	char SrcWriedIp[MAX_IP_LEN] = "192.168.0.40";
@@ -1133,6 +1196,12 @@ void UdpFunc::UdpFuncInit()
 	for (int i = 0; i < 1052 / 4; i++) {
 		pTmp[i] = pPowerDown[i];
 	}	
+
+	//创建EMMC图像目录
+	m_mkdir = MyDirExist(RAW_IMAGE_PATH);
+	if (0 != m_mkdir) {
+		MyMkdir(RAW_IMAGE_PATH);
+	}
 }
 
 //获取当前时间

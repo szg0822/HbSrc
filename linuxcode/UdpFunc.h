@@ -125,7 +125,7 @@ typedef struct ParameterInfo
 
 #define FILE_NAME_GAIN 			"/home/root/szg/gain.raw"
 #define FILE_NAME_DEFECT 		"/home/root/szg/defect.dld"
-#define RAW_IMAGE_PATH			"/home/root/szg/raw/"
+#define RAW_IMAGE_PATH			"/media/sd-mmcblk0p2/szg/raw/"
 
 class UdpFunc:public Thread,public MyUDP
 {
