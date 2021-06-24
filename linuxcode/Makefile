@@ -19,7 +19,7 @@ endif
 #LIBS = -lopencv_core -lopencv_imgproc -lopencv_highgui 
 OPT = -O3 -g  -pthread -std=c++11 -g -Wall		
 #-Wall
-OBJS= main.o MyUDP.o UdpFunc.o thread.o LinuxLog.o
+OBJS= main.o MyUDP.o UdpFunc.o thread.o LinuxLog.o Serial.o
 all:demo
 		echo all:make complete
 %.o:%.cpp

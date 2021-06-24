@@ -19,10 +19,14 @@
 #include <dirent.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <termios.h> //set baud rate
+#include <sys/select.h>
+#include <sys/types.h>
 
 #include "UdpFunc.h"
 #include "LinuxLog.h"
 #include "MyUDP.h"
+#include "Serial.h"
 
 #define BuffSize 1024
 #define TIMEOUT 2       //超时等待2秒
@@ -83,6 +87,10 @@ static struct timeval m_end;
 static UINT m_PowerDownFlag = 0;
 static UINT m_PowerOnFlag = 0;
 static UINT m_ConnectFlag = 0;		//当前如果处于休眠状态，上位机重新连接时需要直接唤醒
+
+//串口
+static int fdSerial = -1;
+static CSerial cSerial;
 
 
 //大小端转换32位
@@ -1202,6 +1210,67 @@ void UdpFunc::UdpFuncInit()
 	if (0 != m_mkdir) {
 		MyMkdir(RAW_IMAGE_PATH);
 	}
+}
+
+void SerialOpen(void)
+{
+	int iSetOpt = 0;//SetOpt 的增量i
+	//openPort
+	if ((fdSerial = cSerial.openPort(1))<0)//1--"/dev/ttyS0",2--"/dev/ttyS1",3--"/dev/ttyS2",4--"/dev/ttyUSB0" 测试：5--"./test.txt"
+	{
+		LogError("[%s:%s %u]  serial open_port error \n", __FILE__, __func__, __LINE__);
+		return;
+	}
+		
+	//setOpt(fdSerial, 115200, 8, 'N', 1)
+	if ((iSetOpt = cSerial.setOpt(fdSerial, 9600, 8, 'N', 1))<0)
+	{
+		LogError("[%s:%s %u]  serial set_opt error \n", __FILE__, __func__, __LINE__);
+		return;
+	}
+	//printf("Serial fdSerial=%d\n", fdSerial);
+	tcflush(fdSerial, TCIOFLUSH);//清掉串口缓存
+	fcntl(fdSerial, F_SETFL, 0);
+}
+
+void SerialSend()
+{
+	uint8_t SlaveAdd = 0x01;		//从机地址
+	uint8_t RegisterAdd = 0x08;		//寄存器地址
+	uint16_t Num = 0x1001;			//各电源开关
+
+	if (fdSerial >= 0)
+		cSerial.WriteMessage(fdSerial, SlaveAdd, RegisterAdd, Num);
+}
+
+void SerialRecv()
+{
+	int RetRecv = -1;
+	uint8_t Databuf[SERIAL_BUF_SIZE];
+	int BufLen;
+
+	if (fdSerial >= 0) {
+		RetRecv = cSerial.ReadMessage(fdSerial, Databuf, &BufLen);
+		if (0 == RetRecv) {
+			int n = 1;
+			printf("len=%d\n", BufLen);
+			for (int i = 0; i < BufLen; i++) {
+				printf("buf[%d]=0x%x\t", i, Databuf[i]);
+				if (n % 10 == 0 )
+					printf("\n");
+				n++;
+			}
+
+			memset(Databuf, 0x00, SERIAL_BUF_SIZE);
+			RetRecv = -1;
+		}
+	}
+}
+
+void SerialClose()
+{
+	if (fdSerial >= 0)
+		close(fdSerial);
 }
 
 //获取当前时间
