@@ -1488,6 +1488,17 @@ void UdpFunc::run()
 			gettimeofday(&m_start, NULL);
 
 			m_pRecvCmd = (UCHAR *)(recvbuf + OFFSET_PACKAGE_CMD); //CMD
+			if ((*(m_pRecvCmd) == RECV_TYPE_Firmware_Update) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_GAIN) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_DEFECT)) {
+				//屏蔽不必要的打印
+			}else {
+				LogDebug("[%s:%s %u]  Recv XDStatic [Cmd=0x%.2x] \n", __FILE__, __func__, __LINE__,  *(m_pRecvCmd));
+			}
+			//如果处于休眠模式，只能通过3种唤醒方式，屏蔽其它操作
+			if (0xFF == p_bram_parameter[447]) {
+				if ((*(m_pRecvCmd) == RECV_TYPE_POWERON) || (*(m_pRecvCmd) == RECV_TYPE_READ_PARA)) {}
+				else 
+					continue;
+			}
 
 			p_bram_parameter = p_bram_tail + 0x1000;		//FPGA_ADDRESS+1000
 			//因固件不支持memcpy（会出现Bus error），自己封装函数
@@ -1495,7 +1506,9 @@ void UdpFunc::run()
 			//MyMemcpy(p_bram_parameter, recvbuf, PC_SENDBUF_SIZE + 3); //不能配置参数，需要每次拷贝4个字节
 
 			if ((*(m_pRecvCmd) == RECV_TYPE_ERASE_FLASH) || (*(m_pRecvCmd) == RECV_TYPE_Firmware_Update) || (*(m_pRecvCmd) == RECV_TYPE_PACKET_RETRANS) \
-				|| (*(m_pRecvCmd) == RECV_TYPE_FRAME_RETRANS) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_GAIN) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_DEFECT)) {
+				|| (*(m_pRecvCmd) == RECV_TYPE_FRAME_RETRANS) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_GAIN) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_DEFECT) \
+				|| (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_IAMGE) || (*(m_pRecvCmd) == RECV_TYPE_POWERDOWN) || (*(m_pRecvCmd) == RECV_TYPE_POWERON) \
+				) {
 				//不需要透传的命令
 			}else {
 				pTmpPara = (UINT *)p_bram_parameter;
@@ -1505,12 +1518,6 @@ void UdpFunc::run()
 				}
 			}
 			
-
-			if ((*(m_pRecvCmd) == RECV_TYPE_Firmware_Update) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_GAIN) || (*(m_pRecvCmd) == RECV_TYPE_DOWNLOAD_DEFECT)) {
-				//屏蔽不必要的打印
-			}else {
-				LogDebug("[%s:%s %u]  Recv XDStatic [Cmd=0x%.2x] \n", __FILE__, __func__, __LINE__,  *(m_pRecvCmd));
-			}
 			MySwitch(*(m_pRecvCmd), recvbuf);				
 			memset(recvbuf, 0x00, PC_SENDBUF_SIZE + 3);             //用完清空		
 		}
