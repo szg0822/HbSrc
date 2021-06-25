@@ -49,6 +49,10 @@
 #define FPD_STATUS_PREPARE       0X04  // Software mode,prepare command feedback command
 #define FPD_STATUS_SLEEP         12  // Power Down	0x0C
 #define FPD_STATUS_WAKEUP        13  // Power On	0x0D
+#define FPD_STATUS_IMAGE_NO      14  // EMMC没有存图	0x0E
+#define FPD_STATUS_IMAGE_LAST    15  // 下载的最后一张图像	0x0F
+#define FPD_STATUS_TOPLIMIT      16  // EMMC存图数量已达上限，不能继续存图	0x10
+
 // #define FPD_UPLOAD_GAIN_ANSWER   0X06  // Upload gain template answer
 // #define FPD_UPLOAD_DEFECT_ANSWER 0X07  // Upload defect template answer
 // #define SINGLE_FRAME_IMAGE_DATA  0X00  // Single frame image data

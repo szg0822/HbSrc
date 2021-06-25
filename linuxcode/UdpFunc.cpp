@@ -69,6 +69,7 @@ static UINT mFrameImageFlag = 0;	//是否读取完成；1：完成
 static UINT m_FrameCount = 0;		//存储在文件里的图像数量
 static UINT m_FraCount = 0;			//图像开始编号
 static UINT m_RNum = 1;
+static UINT m_ImageMaxFlag = 0;		//图像数量最大为300
 
 // typedef struct defect {
 	// unsigned de:8;
@@ -694,9 +695,18 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	pSaveImage = pImage;	
 
 	if (1 == SaveEmmc) {
-		m_ret = SaveImageData(pSaveImage, ImageSize);
-		if (0 != m_ret) {
-			LogError("[%s:%s %u]=== SaveImageData error! ret=%d\n", __FILE__, __func__, __LINE__, m_ret);
+		UINT m_framCount = 0;
+		if (0 == m_ImageMaxFlag) {
+			m_ret = SaveImageData(pSaveImage, ImageSize);
+			if (0 != m_ret) {
+				LogError("[%s:%s %u]=== SaveImageData error! ret=%d\n", __FILE__, __func__, __LINE__, m_ret);
+			}
+		}
+		GetImageCount(&m_framCount);
+		if (m_framCount >= 300) {
+			m_ImageMaxFlag = 1;
+			UploadStateCmd(CMDU_REPORT, FPD_STATUS_TOPLIMIT);
+			LogDebug("[%s:%s %u]  EMMC：SaveImageEnd, Toplimit=300 \n", __FILE__, __func__, __LINE__);
 		}
 	}
 	
@@ -1095,7 +1105,7 @@ int UdpFunc::UdpSendImage()
 
 	lImageSize = ReadImageData(pSaveImage);
 	if (-1 == lImageSize) {
-		//UploadResponseCmd(CMDD_DUMMPLING);	//szgTest:需要确认
+		UploadStateCmd(CMDU_REPORT, FPD_STATUS_IMAGE_NO);
 		return -1;
 	}
 
@@ -1115,7 +1125,7 @@ int UdpFunc::UdpSendImage()
 			break;
 		}
 		
-		CreateCmd(CMDU_UPLOAD_IMAGE_SINGLE_SHOT, NULL);	//szgTest:需要确认
+		CreateCmd(CMDU_UPLOAD_IMAGE_SINGLE_SHOT, NULL);	
 		//序号
 		pSendBuf[HB_ID1] = (m_RNum ) & 0xff;
 		pSendBuf[HB_ID2] = (m_RNum >> 8) & 0xff;
@@ -1145,7 +1155,7 @@ int UdpFunc::UdpSendImage()
 		if (m_ParaInfo.FrameNum > 0)
 			mReadNum = m_ParaInfo.FrameNum - 1;
 		LogDebug("[%s:%s %u]  ===Read Complete!!!! \n", __FILE__, __func__, __LINE__);
-		//UploadResponseCmd(CMDD_DUMMPLING);	//szgTest:需要确认
+		UploadStateCmd(CMDU_REPORT, FPD_STATUS_IMAGE_LAST);
 	}
 	return 0;
 }
@@ -1424,7 +1434,7 @@ void UdpFunc::MySwitch(UCHAR RCmd, UCHAR *pRecvBuf)
 				UploadResponseCmd(CMDD_PACKET_RETRANS);			
 			}
 			break;
-		case RECV_TYPE_DOWNLOAD_IAMGE: //szgTest:需要确认
+		case RECV_TYPE_DOWNLOAD_IAMGE: 
 			//读取EMMC图像 
 			if (0 == UdpSendImage()) {
 				CreateCmd(CMDU_REPORT, &m_SCode);																			
