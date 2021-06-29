@@ -1313,6 +1313,7 @@ void UdpFunc::InputLowerPower()
 
 	if (diff >= (m_time * CLOCKS_PER_SEC)) {
 		//LogError("[%s:%s %u]  ==========================Test:time=%ld \n", __FILE__, __func__, __LINE__, diff);
+		m_PowerOnFlag = 0;		//如果先按了唤醒，再去休眠，就会休眠失败；点击PowerOn是会记录标识的，会一直为1
 		//读取Fpga数据，组包发送Fpga
 		CreateCmd(CMDD_WRITE_PARA, NULL);
 		MyMemcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], p_bram_parameter, TMP_BUFFER_SIZE);
