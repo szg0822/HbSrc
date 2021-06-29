@@ -776,7 +776,7 @@ int UdpFunc::UploadStateCmd(TCmdID cmdID, UCHAR chStatusCode)
 	pSendBuf[HB_ID2] = (FrameCount >> 8) & 0xff;
 	pSendBuf[HB_ID3] = (FrameCount >> 16) & 0xff;
 	if (0 != UDP_SEND((UCHAR *)pSendBuf, PACKET_MAX_SIZE)) {
-		LogError("[%s:%s %u]=== UDP_SEND failed!", __FILE__, __func__, __LINE__);
+		//LogError("[%s:%s %u]=== UDP_SEND failed!", __FILE__, __func__, __LINE__);
 		return -1;
 	}
 	return 0;
@@ -1532,7 +1532,7 @@ void UdpFunc::run()
 			memset(recvbuf, 0x00, PC_SENDBUF_SIZE + 3);             //用完清空		
 		}
 		else {
-			if (0 == PowerBuf[19 + 447]) {
+			if (0 == p_bram_parameter[447]) {		//读取探测器参数 
 				//进入低功耗模式
 				InputLowerPower();
 			}
