@@ -69,7 +69,7 @@ static UINT mFrameImageFlag = 0;	//是否读取完成；1：完成
 static UINT m_FrameCount = 0;		//存储在文件里的图像数量
 static UINT m_FraCount = 0;			//图像开始编号
 static UINT m_RNum = 1;
-static UINT m_ImageMaxFlag = 0;		//图像数量最大为300
+static UINT m_FrameNum = 1;				//接收下载图像序号，默认为1 ID1~ID4组成
 
 // typedef struct defect {
 	// unsigned de:8;
@@ -361,14 +361,14 @@ int UdpFunc::ReadImageData(UCHAR *pImage)
 		mFrameImageFlag = 0;
 	}
 
-	if (0 == m_ParaInfo.FrameNum) {
-		m_ParaInfo.FrameNum = 1;
+	if (0 == m_FrameNum) {
+		m_FrameNum = 1;
 	}
 	//从一个指定帧号(n-1)开始读取,默认必须为1
-	if (ImageNum != m_ParaInfo.FrameNum) {
-		if (m_ParaInfo.FrameNum > 0) {
-			mReadNum = m_ParaInfo.FrameNum - 1;
-			ImageNum = m_ParaInfo.FrameNum;
+	if (ImageNum != m_FrameNum) {
+		if (m_FrameNum > 0) {
+			mReadNum = m_FrameNum - 1;
+			ImageNum = m_FrameNum;
 			m_RNum = mReadNum + 1; 
 		}
 	}
@@ -378,6 +378,7 @@ int UdpFunc::ReadImageData(UCHAR *pImage)
 	if((fp=fopen(Nbuf,"r"))==NULL)
 	{
 		LogError("[%s:%s %u]  open <%s> file error \n", __FILE__, __func__, __LINE__, Nbuf);
+		mReadNum = m_FrameNum - 1;
 		return -1;
 	}
 	fseek(fp, 0L, SEEK_END);
@@ -696,15 +697,26 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 
 	if (1 == SaveEmmc) {
 		UINT m_framCount = 0;
-		if (0 == m_ImageMaxFlag) {
-			m_ret = SaveImageData(pSaveImage, ImageSize);
-			if (0 != m_ret) {
-				LogError("[%s:%s %u]=== SaveImageData error! ret=%d\n", __FILE__, __func__, __LINE__, m_ret);
-			}
+		m_ret = SaveImageData(pSaveImage, ImageSize);
+		if (0 != m_ret) {
+			LogError("[%s:%s %u]=== SaveImageData error! ret=%d\n", __FILE__, __func__, __LINE__, m_ret);
 		}
 		GetImageCount(&m_framCount);
 		if (m_framCount >= 300) {
-			m_ImageMaxFlag = 1;
+			UINT * pTmp = NULL;
+			UINT *pPowerDown = NULL;
+			CreateCmd(CMDD_WRITE_PARA, NULL);
+			MyMemcpy(&pSendBuf[OFFSET_PACKAGE_IMAGESLICE], p_bram_parameter, TMP_BUFFER_SIZE);
+			MyMemcpy(PowerBuf, pSendBuf, PACKET_PL_SIZE);
+			//发送给PL
+			PowerBuf[19 + 522] = 0x01;		//修改配置开关；1：可以修改，0：不能修改
+			PowerBuf[19 + 523] = 0x00;
+			PowerBuf[19 + 524] = 0x00;
+			pPowerDown = (UINT *)PowerBuf;		//保存之前的配置
+			pTmp = (UINT *)p_bram_parameter;
+			for (int i = 0; i < 1052 / 4; i++) {
+				pTmp[i] = pPowerDown[i];
+			}	
 			UploadStateCmd(CMDU_REPORT, FPD_STATUS_TOPLIMIT);
 			LogDebug("[%s:%s %u]  EMMC：SaveImageEnd, Toplimit=300 \n", __FILE__, __func__, __LINE__);
 		}
@@ -1095,13 +1107,16 @@ int UdpFunc::DownloadCurrencyTemplate(UCHAR *recvbuf, UINT TemplateValue)
 * 返 回 值：
 * 备    注: 利用文件存储图像数量
 *********************************************************/
-int UdpFunc::UdpSendImage()
+int UdpFunc::UdpSendImage(UCHAR * pRecvBuf)
 {
 	UCHAR * pImage = NULL;
 	UINT packageNo = 0;
 	int lImageSize = 0;
 	int ImageLen = 0;
 	LogDebug("[%s:%s %u]  UdpSendImage Start! \n", __FILE__, __func__, __LINE__);
+
+	m_FrameNum = (pRecvBuf[HB_ID1] & 0xff) | ((pRecvBuf[HB_ID2] & 0xff) << 8) \
+				| ((pRecvBuf[HB_ID3] & 0xff) << 16) | ((pRecvBuf[HB_ID4] & 0xff) << 24);		//低高
 
 	lImageSize = ReadImageData(pSaveImage);
 	if (-1 == lImageSize) {
@@ -1152,8 +1167,8 @@ int UdpFunc::UdpSendImage()
 
 	//判断保存的图像是否读取完毕，发个消息给上位机
 	if (1 == mFrameImageFlag) {
-		if (m_ParaInfo.FrameNum > 0)
-			mReadNum = m_ParaInfo.FrameNum - 1;
+		if (m_FrameNum > 0)
+			mReadNum = m_FrameNum - 1;
 		LogDebug("[%s:%s %u]  ===Read Complete!!!! \n", __FILE__, __func__, __LINE__);
 		UploadStateCmd(CMDU_REPORT, FPD_STATUS_IMAGE_LAST);
 	}
@@ -1437,7 +1452,7 @@ void UdpFunc::MySwitch(UCHAR RCmd, UCHAR *pRecvBuf)
 			break;
 		case RECV_TYPE_DOWNLOAD_IAMGE: 
 			//读取EMMC图像 
-			if (0 == UdpSendImage()) {
+			if (0 == UdpSendImage(pRecvBuf)) {
 				CreateCmd(CMDU_REPORT, &m_SCode);																			
 				m_RNum = mReadNum;
 				if (1 == mFrameImageFlag) {

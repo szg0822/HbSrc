@@ -121,7 +121,6 @@ typedef struct ParameterInfo
 	UINT defect;
 	UINT SaturationV;			//饱和度
 	UINT PanelSize;				//平板像素大小的选择
-	UINT FrameNum;				//要读取探测器内部自动存储图像的编号，默认为1
 	UINT SaveEMMC;				//是否把图片保存在EMMC里；1保存，0不保存
 	UINT PowerDown;				//低功耗配置：FFBF；正常：0
 }parameter_t;
@@ -278,7 +277,7 @@ public:
 	* 返 回 值：
 	* 备    注: 利用文件存储图像数量
 	*********************************************************/
-	int UdpSendImage();
+	int UdpSendImage(UCHAR *pRecvBuf);
 
 	//获取当前时间
 	void GetStartTime();
