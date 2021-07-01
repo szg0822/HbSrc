@@ -81,9 +81,10 @@ static void GetBramParameter()
 //Panel_Size(平板像素大小的选择)
 	m_ParaInfo.PanelSize = *(pBramParameter + OFFSET_PARAMETER_PANELSIZE);
 
-//要读取探测器内部自动存储图像的编号，默认为1
+//EMMC存图使能
 	udpfunc.MyMemcpy(tmpSVBuf, (pBramParameter + 523), 2);	
 	m_ParaInfo.SaveEMMC = tmpSVBuf[0] << 8 | tmpSVBuf[1];
+	//m_ParaInfo.SaveEMMC = *(pBramParameter + OFFSET_PARAMETER_EMMC); 
 
 //低功耗参数
 	udpfunc.MyMemcpy(tmpSVBuf, (pBramParameter + 447), 2);

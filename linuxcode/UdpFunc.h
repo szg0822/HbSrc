@@ -30,6 +30,7 @@
 #define OFFSET_PARAMETER_OFFSET	      			371
 #define OFFSET_PARAMETER_GAIN	      			372
 #define OFFSET_PARAMETER_DEFECT	      			373
+#define OFFSET_PARAMETER_EMMC					523
 
 //HB协议ID
 #define HB_ID1		10

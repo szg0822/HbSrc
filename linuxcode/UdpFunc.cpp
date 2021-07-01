@@ -718,6 +718,7 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 				pTmp[i] = pPowerDown[i];
 			}	
 			UploadStateCmd(CMDU_REPORT, FPD_STATUS_TOPLIMIT);
+			m_FraCount = 0;  //EMMC达上限后，如果再次使能，删除原数据，重新存储。
 			LogDebug("[%s:%s %u]  EMMC：SaveImageEnd, Toplimit=300 \n", __FILE__, __func__, __LINE__);
 		}
 	}
