@@ -87,7 +87,8 @@
 #define RECV_TYPE_POWERDOWN				0x0D	 //进入低功耗模式
 #define RECV_TYPE_POWERON				0x0E	 //唤醒低功耗模式
 #define RECV_TYPE_READ_PARA				0x13	 //读取参数或连接   后面改0x0B
-
+#define TEST1	0x01
+#define TEST2	0x05
 //上位机下发的命令
 typedef enum tagTCmdID {
 	CMDD_GLOBAL_RESET = 1, \

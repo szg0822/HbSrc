@@ -70,7 +70,7 @@ int CSerial::openPort(int comport)
 	int fd = -1;
 	if (comport == 1)
 	{
-		fd = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_NDELAY);
+		fd = open("/dev/ttyPS1", O_RDWR | O_NOCTTY | O_NDELAY);
 		if (-1 == fd)
 		{
 			return(-1);
@@ -286,21 +286,39 @@ int CSerial::writeDataTty(int fd, uint8_t *send_buf, int Len)
  
 	return 0;
 }
-//0x01 0x52 0x08 0x0000 0x22 0x33
-//ARM发送写指令（6个字节）
-int CSerial::WriteMessage(int fd, uint8_t SlaveAdd, uint8_t RegisterAdd, uint16_t Num)
+
+/*************************************************
+Function: // WriteMessage_57
+Description: // ARM发送写指令
+Input: // fd:设备描述符； RegisterAdd:寄存器地址； Num：数据数量N； Data：N个16bit数据
+Output: // 无
+Return: // 正确：0，错误返回-1
+Others: // 其它说明
+*************************************************/
+//01 57 08 01 12 34 CA 2A
+//ARM发送写指令
+int CSerial::WriteMessage_57(int fd, uint8_t RegisterAdd, uint8_t Num, uint16_t *Data)
 {
+	LogDebug("[%s:%s %u]  WriteMessage_57 \n", __FILE__, __func__, __LINE__);
 	uint8_t sndbuf[SERIAL_BUF_SIZE] = {0};
 	memset(sndbuf, 0x00, SERIAL_BUF_SIZE);
 	// head 0~5
 	int i = 0;
+	int j = 0;
+	int k = 0;
 	uint16_t crc_len = 0;
 
-	sndbuf[i++] = SlaveAdd;
-	sndbuf[i++] = 0x52;
+	sndbuf[i++] = 0x01;
+	sndbuf[i++] = 0x57;
 	sndbuf[i++] = RegisterAdd;
-	sndbuf[i++] = (uint8_t)(Num & 0xff);
-	sndbuf[i++] = (uint8_t)((Num >> 8) & 0xff);
+	sndbuf[i++] = Num;
+	printf("num=%d\n", Num);
+	for (j = i, k = 0; k < Num; k++) {
+		sndbuf[j] = (uint8_t)((Data[k] >> 8) & 0xff);
+		sndbuf[j+1] = (uint8_t)(Data[k] & 0xff);
+		j += 2;
+	}
+	i = j;
 	crc_len = i;
 	uint16_t ret_crc = crc16(sndbuf, crc_len);
 	uint8_t crcH, crcL;
@@ -312,7 +330,7 @@ int CSerial::WriteMessage(int fd, uint8_t SlaveAdd, uint8_t RegisterAdd, uint16_
 	sndbuf[i++] = crcL;
 	for(int j = 0; j < i; j++) 
 	{
-		printf("send[%d]=0x%x\t", j, sndbuf[j]);
+		printf("send[%d]=0x%x ", j, sndbuf[j]);
 	}
 	printf("\n");
 	if (0 != writeDataTty(fd, sndbuf, i)) {
@@ -323,7 +341,55 @@ int CSerial::WriteMessage(int fd, uint8_t SlaveAdd, uint8_t RegisterAdd, uint16_
 	return 0; 
 }
 
-//ARM发送读指令（BufLen）
+/*************************************************
+Function: // WriteMessage_52
+Description: // ARM发送读指令
+Input: // fd:设备描述符； RegisterAdd:寄存器地址； Num：数据数量N； Data：N个16bit数据
+Output: // 无
+Return: // 正确：0，错误返回-1
+Others: // 其它说明
+*************************************************/
+//01 52 00 01 ED 61
+//ARM发送读指令
+int CSerial::WriteMessage_52(int fd, uint8_t RegisterAdd, uint8_t Num)
+{
+	LogDebug("[%s:%s %u]  WriteMessage_52 \n", __FILE__, __func__, __LINE__);
+	uint8_t sndbuf[SERIAL_BUF_SIZE] = {0};
+	memset(sndbuf, 0x00, SERIAL_BUF_SIZE);
+	// head 0~5
+	int i = 0;
+	uint16_t crc_len = 0;
+
+	sndbuf[i++] = 0x01;
+	sndbuf[i++] = 0x52;
+	sndbuf[i++] = RegisterAdd;
+	sndbuf[i++] = Num;
+
+	LogDebug("[%s:%s %u]  num=%d \n", __FILE__, __func__, __LINE__, Num);
+
+	crc_len = i;
+	uint16_t ret_crc = crc16(sndbuf, crc_len);
+	uint8_t crcH, crcL;
+	crcH = (ret_crc >> 8) & 0xff;
+	crcL = ret_crc & 0xff;
+	//printf("write:buf[0]=0x%x, buf[1]=0x%x\n", crcH, crcL);
+
+	sndbuf[i++] = crcH;
+	sndbuf[i++] = crcL;
+	for(int j = 0; j < i; j++) 
+	{
+		printf("send[%d]=0x%x ", j, sndbuf[j]);
+	}
+	printf("\n");
+	if (0 != writeDataTty(fd, sndbuf, i)) {
+		LogError("[%s:%s %u]  send error \n", __FILE__, __func__, __LINE__);
+		return -1;
+	}
+		
+	return 0; 
+}
+
+//ARM接收数据
 int CSerial::ReadMessage(int fd, uint8_t *pData, int *BufLen)
 {
 	uint8_t readbuf[SERIAL_BUF_SIZE];
@@ -346,8 +412,11 @@ int CSerial::ReadMessage(int fd, uint8_t *pData, int *BufLen)
 	// {
 		// printf("buf[%d]=0x%x\t", i, readbuf[i]);
 	// }
-	printf("buf[3]=0x%x\n", readbuf[3]);
-
+	//printf("buf[3]=0x%x\n", readbuf[3]);
+	//没有数据
+	if (0 == readDataLen) {
+		return -2;
+	}
 //CRC校验
 	uint16_t ret_crc = crc16(readbuf, readDataLen - 2);
 	crcH = (ret_crc >> 8) & 0xff;
@@ -365,8 +434,8 @@ int CSerial::ReadMessage(int fd, uint8_t *pData, int *BufLen)
 		// count = TmpBuf[0];
 		count = readbuf[3];
 		*BufLen = count * 2;
-		if (0x10 != readbuf[3])
-			printf("=====err：readbuf=%x, count=%d, len=%d\n", readbuf[3], count, *BufLen);
+		// if (0x10 != readbuf[3])
+			// printf("=====err：readbuf=%x, count=%d, len=%d\n", readbuf[3], count, *BufLen);
 
 		memcpy(pData, readbuf + 4, *BufLen);
 		ret = 0;
@@ -387,4 +456,81 @@ int CSerial::ReadMessage(int fd, uint8_t *pData, int *BufLen)
 	
 	return ret;
 }
+
+int CSerial::SerialOpen(void)
+{
+	int iSetOpt = 0;//SetOpt 的增量i
+	//openPort
+	if ((fdSerial = openPort(1))<0)//1--"/dev/ttyPS1",2--"/dev/ttyS1",3--"/dev/ttyS2",4--"/dev/ttyUSB0" 测试：5--"./test.txt"
+	{
+		LogError("[%s:%s %u]  serial open_port error \n", __FILE__, __func__, __LINE__);
+		return -1;
+	}
+		
+	//setOpt(fdSerial, 115200, 8, 'N', 1)
+	if ((iSetOpt = setOpt(fdSerial, 115200, 8, 'N', 1))<0)
+	{
+		LogError("[%s:%s %u]  serial set_opt error \n", __FILE__, __func__, __LINE__);
+		return -1;
+	}
+	//printf("Serial fdSerial=%d\n", fdSerial);
+	tcflush(fdSerial, TCIOFLUSH);//清掉串口缓存
+	fcntl(fdSerial, F_SETFL, 0);
+	return 0;
+}
+
+int CSerial::SerialSend(uint8_t RegisterAdd, uint8_t Num, uint16_t *Data)
+{
+	int ret = -1;
+	LogDebug("[%s:%s %u]  SerialSend \n", __FILE__, __func__, __LINE__);
+
+	if (fdSerial >= 0) {
+		if (NULL == Data) {
+			//ARM发送读指令
+			ret = WriteMessage_52(fdSerial, RegisterAdd, Num);
+		}
+		else {
+			//ARM发送写指令
+			ret = WriteMessage_57(fdSerial, RegisterAdd, Num, Data);
+			if (0 != ret) {
+				LogError("[%s:%s %u]  write Serial error \n", __FILE__, __func__, __LINE__);
+				return -2;
+			}
+		}
+	}
+	return ret;
+}
+
+int CSerial::SerialRecv()
+{
+	int RetRecv = -1;
+	uint8_t Databuf[SERIAL_BUF_SIZE] = {'\0'};
+	int BufLen;
+
+	if (fdSerial >= 0) {
+		RetRecv = ReadMessage(fdSerial, Databuf, &BufLen);
+		if (0 == RetRecv) {
+			int n = 1;
+			printf("len=%d\n", BufLen);
+			for (int i = 0; i < BufLen; i++) {
+				printf("Rbuf[%d]=0x%x\t", i, Databuf[i]);
+				// if (n % 10 == 0 )
+					// printf("\n");
+				// n++;
+			}
+			printf("\n");
+
+			memset(Databuf, 0x00, SERIAL_BUF_SIZE);
+			RetRecv = -1;
+		}
+	}
+	return 0;
+}
+
+void CSerial::SerialClose()
+{
+	if (fdSerial >= 0)
+		close(fdSerial);
+}
+
  

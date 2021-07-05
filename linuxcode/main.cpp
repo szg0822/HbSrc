@@ -25,6 +25,7 @@
 #include "LinuxLog.h"
 #include "MyUDP.h"
 #include "UdpFunc.h"
+#include "Serial.h"
 
 using namespace std; 
 
@@ -33,6 +34,7 @@ using namespace std;
 //static char const *szdstIp = "192.168.10.23";    //目标主机IP
 //static char const *szsrcIp = "192.168.10.80";    //本机IP
 UdpFunc udpfunc;//线程对象
+CSerial cSerial;	//串口对象
 
 parameter_t m_ParaInfo;
 
@@ -203,6 +205,16 @@ int InitDevMem()
 	return 0;
 }
 
+#include <thread>
+
+void MySerialThread()
+{
+	while(1) {
+		cSerial.SerialRecv();
+		usleep(100 * 1000);
+	}	
+}
+
 int main(int argc, char* argv[])
 {
 	int ret = 0;
@@ -226,8 +238,13 @@ int main(int argc, char* argv[])
 	//udp连接，接收线程
 	udpfunc.start();
 
+	//arm和mcu通信
+	cSerial.SerialOpen();
+	thread mythread1(MySerialThread);
+
 	//接收FPGA数据，然后发送数据到上位机
 	UdpSend();
+	
 
 	//等待线程
 	udpfunc.join();

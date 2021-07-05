@@ -37,18 +37,17 @@ public:
     int setOpt(int fd, int nSpeed, int nBits, char nEvent, int nStop);  //设置串口属性
     int readDataTty(int fd, uint8_t *rcv_buf, int TimeOut, int Len);   //从串口读取数据
     int writeDataTty(int fd, uint8_t *send_buf, int Len);  //写数据到串口
-    int WriteMessage(int fd, uint8_t SlaveAdd, uint8_t RegisterAdd, uint16_t Num);  //ARM发送写指令
-    int ReadMessage(int fd, uint8_t *pData, int *BufLen);  //ARM发送读指令
+    int WriteMessage_57(int fd, uint8_t RegisterAdd, uint8_t Num, uint16_t *Data);  //ARM发送写指令
+    int WriteMessage_52(int fd, uint8_t RegisterAdd, uint8_t Num);  //ARM发送读指令
+    int ReadMessage(int fd, uint8_t *pData, int *BufLen);  //ARM接收数据
 
     SMessage_t *m_pSMessage;
+    //串口
+    int fdSerial = -1;
 
-    #ifdef TEST
-
-    int TestSendMessage(int fd);
-    int TestReadMessage(int fd);
-    int myOpen(int SNum);
-    #endif
-
-
+    int SerialOpen(void);
+    int SerialSend(uint8_t RegisterAdd, uint8_t Num, uint16_t *Data);
+    int SerialRecv();
+    void SerialClose();
 
 };

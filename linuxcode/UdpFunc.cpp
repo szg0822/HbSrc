@@ -22,6 +22,7 @@
 #include <termios.h> //set baud rate
 #include <sys/select.h>
 #include <sys/types.h>
+#include<thread>
 
 #include "UdpFunc.h"
 #include "LinuxLog.h"
@@ -89,10 +90,8 @@ static UINT m_PowerDownFlag = 0;
 static UINT m_PowerOnFlag = 0;
 static UINT m_ConnectFlag = 0;		//当前如果处于休眠状态，上位机重新连接时需要直接唤醒
 
-//串口
-static int fdSerial = -1;
-static CSerial cSerial;
-
+//串口变量
+extern CSerial cSerial;
 
 //大小端转换32位
 #define BSWAP_32(x) \   
@@ -1238,66 +1237,6 @@ void UdpFunc::UdpFuncInit()
 	}
 }
 
-void SerialOpen(void)
-{
-	int iSetOpt = 0;//SetOpt 的增量i
-	//openPort
-	if ((fdSerial = cSerial.openPort(1))<0)//1--"/dev/ttyS0",2--"/dev/ttyS1",3--"/dev/ttyS2",4--"/dev/ttyUSB0" 测试：5--"./test.txt"
-	{
-		LogError("[%s:%s %u]  serial open_port error \n", __FILE__, __func__, __LINE__);
-		return;
-	}
-		
-	//setOpt(fdSerial, 115200, 8, 'N', 1)
-	if ((iSetOpt = cSerial.setOpt(fdSerial, 9600, 8, 'N', 1))<0)
-	{
-		LogError("[%s:%s %u]  serial set_opt error \n", __FILE__, __func__, __LINE__);
-		return;
-	}
-	//printf("Serial fdSerial=%d\n", fdSerial);
-	tcflush(fdSerial, TCIOFLUSH);//清掉串口缓存
-	fcntl(fdSerial, F_SETFL, 0);
-}
-
-void SerialSend()
-{
-	uint8_t SlaveAdd = 0x01;		//从机地址
-	uint8_t RegisterAdd = 0x08;		//寄存器地址
-	uint16_t Num = 0x1001;			//各电源开关
-
-	if (fdSerial >= 0)
-		cSerial.WriteMessage(fdSerial, SlaveAdd, RegisterAdd, Num);
-}
-
-void SerialRecv()
-{
-	int RetRecv = -1;
-	uint8_t Databuf[SERIAL_BUF_SIZE];
-	int BufLen;
-
-	if (fdSerial >= 0) {
-		RetRecv = cSerial.ReadMessage(fdSerial, Databuf, &BufLen);
-		if (0 == RetRecv) {
-			int n = 1;
-			printf("len=%d\n", BufLen);
-			for (int i = 0; i < BufLen; i++) {
-				printf("buf[%d]=0x%x\t", i, Databuf[i]);
-				if (n % 10 == 0 )
-					printf("\n");
-				n++;
-			}
-
-			memset(Databuf, 0x00, SERIAL_BUF_SIZE);
-			RetRecv = -1;
-		}
-	}
-}
-
-void SerialClose()
-{
-	if (fdSerial >= 0)
-		close(fdSerial);
-}
 
 //获取当前时间
 void UdpFunc::GetStartTime()
@@ -1344,7 +1283,13 @@ void UdpFunc::InputLowerPower()
 			pTmp[i] = pPowerDown[i];
 		}
 		UploadStateCmd(CMDU_REPORT, FPD_STATUS_SLEEP);	
-	}
+
+		int retS = -1;
+		uint8_t RegisterAdd = 0x08;		//寄存器地址
+		uint8_t Num = 0x01;				//数量
+		uint16_t Data[Num] = {0x00FB};	//关闭bit2：（11111011=0xFB）
+		retS = cSerial.SerialSend(RegisterAdd, Num, Data);
+	}	
 }
 
 /*********************************************************
@@ -1393,6 +1338,11 @@ void UdpFunc::AwakenLowerPower()
 				UploadStateCmd(CMDU_REPORT, FPD_STATUS_WAKEUP);	
 			else			
 				m_ConnectFlag = 0;
+			
+			uint8_t RegisterAdd = 0x08;		//寄存器地址
+			uint8_t Num = 0x01;				//数量
+			uint16_t Data[Num] = {0xFFFF};
+			cSerial.SerialSend(RegisterAdd, Num, Data);
 		}
 	}
 }
@@ -1401,6 +1351,11 @@ void UdpFunc::AwakenLowerPower()
 void UdpFunc::MySwitch(UCHAR RCmd, UCHAR *pRecvBuf)
 {
 	UCHAR m_SCode = FPD_STATUS_READY;
+	uint8_t RegisterAdd1 = 0x00;		//寄存器地址
+	uint8_t Num1 = 0x01;				//数量
+	uint8_t RegisterAdd2 = 0x03;		//寄存器地址
+	uint8_t Num2 = 0x01;				//数量
+	
 	switch (RCmd) {
 		case RECV_TYPE_ERASE_FLASH:
 			//擦除frame（每次update，都会先发一次0x4f；我这里只做回应）
@@ -1484,6 +1439,12 @@ void UdpFunc::MySwitch(UCHAR RCmd, UCHAR *pRecvBuf)
 				m_ConnectFlag = 1;		//Connect 唤醒低功耗
 			}
 			break;
+		// case TEST1:
+			// cSerial.SerialSend(RegisterAdd1, Num1, NULL);
+			// break;
+		// case TEST2:
+			// cSerial.SerialSend(RegisterAdd2, Num2, NULL);
+			// break;
 		default:
 			break;
 	}
