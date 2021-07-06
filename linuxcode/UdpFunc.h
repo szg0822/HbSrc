@@ -125,6 +125,7 @@ typedef struct ParameterInfo
 	UINT PanelSize;				//平板像素大小的选择
 	UINT SaveEMMC;				//是否把图片保存在EMMC里；1保存，0不保存
 	UINT PowerDown;				//低功耗配置：FFBF；正常：0
+	UINT Timing;				//定时进入低功耗 最低1分钟
 }parameter_t;
 
 

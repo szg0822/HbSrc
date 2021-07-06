@@ -40,8 +40,8 @@ parameter_t m_ParaInfo;
 
 //FPGA地址
 int	fd_bram;
-UCHAR *pBramState = NULL;
-UCHAR *pBramParameter;
+UCHAR *pBramState = NULL;	//FPGA状态
+UCHAR *pBramParameter;		//FPGA参数
 UCHAR *pBramAImage;
 UCHAR *pBramBImage;
 
@@ -92,6 +92,10 @@ static void GetBramParameter()
 	udpfunc.MyMemcpy(tmpSVBuf, (pBramParameter + 447), 2);
 	m_ParaInfo.PowerDown = tmpSVBuf[0] << 8 | tmpSVBuf[1];
 
+//定时进入低功耗
+	udpfunc.MyMemcpy(tmpSVBuf, (pBramParameter + 326), 4);
+	m_ParaInfo.Timing = tmpSVBuf[0] << 24 | tmpSVBuf[1] << 16 | tmpSVBuf[2] << 8 | tmpSVBuf[3];
+
 }
 
 /*********************************************************
@@ -110,6 +114,7 @@ static void UdpSend()
 	while(1)
 	{
 		usleep(20 * 1000); //20ms
+
 		switch (pBramState[0]) {
 			case 3: {
 				memset(pBramState, 0xff, BRAM_SIZE_STATE);
@@ -129,9 +134,9 @@ static void UdpSend()
 			case 5: {
 				memset(pBramState, 0xff, BRAM_SIZE_STATE);
 				udpfunc.GetStartTime();			//任何用户操作，重新开始计时
-				LogDebug("[%s:%s %u]  Recv Fpga 0x05, SINGLE_SHORT: Offset=%d, Gain=%d, Defect=%d, PSize=%d, SV=%d, Emmc=%d\n", \
+				LogDebug("[%s:%s %u]  Recv Fpga 0x05, SINGLE_SHORT: Offset=%d, Gain=%d, Defect=%d, PSize=%d, SV=%d, Emmc=%d time=%ds\n", \
 						__FILE__, __func__, __LINE__, m_ParaInfo.offset, m_ParaInfo.gain, m_ParaInfo.defect, m_ParaInfo.PanelSize, \
-						m_ParaInfo.SaturationV, m_ParaInfo.SaveEMMC);
+						m_ParaInfo.SaturationV, m_ParaInfo.SaveEMMC, m_ParaInfo.Timing);
 				if (0 == udpfunc.UploadImageData(CMDU_UPLOAD_IMAGE_SINGLE_SHOT, m_ParaInfo)) {
 					udpfunc.UploadStateCmd(CMDU_REPORT, FPD_STATUS_READY);
 				}

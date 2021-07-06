@@ -115,10 +115,10 @@ int CSerial::openPort(int comport)
 	{
 		LogError("[%s:%s %u]  fcntl failed! \n", __FILE__, __func__, __LINE__);
 	}
-	if (isatty(STDIN_FILENO) == 0)
-	{
-		LogError("[%s:%s %u]  standard input is not a terminal device \n", __FILE__, __func__, __LINE__);
-	}
+	// if (isatty(STDIN_FILENO) == 0)
+	// {
+		// LogError("[%s:%s %u]  standard input is not a terminal device \n", __FILE__, __func__, __LINE__);
+	// }
 
 	return fd;
 }
@@ -312,7 +312,7 @@ int CSerial::WriteMessage_57(int fd, uint8_t RegisterAdd, uint8_t Num, uint16_t 
 	sndbuf[i++] = 0x57;
 	sndbuf[i++] = RegisterAdd;
 	sndbuf[i++] = Num;
-	printf("num=%d\n", Num);
+	//printf("num=%d\n", Num);
 	for (j = i, k = 0; k < Num; k++) {
 		sndbuf[j] = (uint8_t)((Data[k] >> 8) & 0xff);
 		sndbuf[j+1] = (uint8_t)(Data[k] & 0xff);
@@ -328,11 +328,11 @@ int CSerial::WriteMessage_57(int fd, uint8_t RegisterAdd, uint8_t Num, uint16_t 
 
 	sndbuf[i++] = crcH;
 	sndbuf[i++] = crcL;
-	for(int j = 0; j < i; j++) 
-	{
-		printf("send[%d]=0x%x ", j, sndbuf[j]);
-	}
-	printf("\n");
+	// for(int j = 0; j < i; j++) 
+	// {
+		// LogDebug("[%s:%s %u]  send[%d]=0x%x \n", __FILE__, __func__, __LINE__, j, sndbuf[j]);
+	// }
+
 	if (0 != writeDataTty(fd, sndbuf, i)) {
 		LogError("[%s:%s %u]  send error \n", __FILE__, __func__, __LINE__);
 		return -1;
@@ -365,7 +365,7 @@ int CSerial::WriteMessage_52(int fd, uint8_t RegisterAdd, uint8_t Num)
 	sndbuf[i++] = RegisterAdd;
 	sndbuf[i++] = Num;
 
-	LogDebug("[%s:%s %u]  num=%d \n", __FILE__, __func__, __LINE__, Num);
+	//LogDebug("[%s:%s %u]  num=%d \n", __FILE__, __func__, __LINE__, Num);
 
 	crc_len = i;
 	uint16_t ret_crc = crc16(sndbuf, crc_len);
@@ -376,11 +376,11 @@ int CSerial::WriteMessage_52(int fd, uint8_t RegisterAdd, uint8_t Num)
 
 	sndbuf[i++] = crcH;
 	sndbuf[i++] = crcL;
-	for(int j = 0; j < i; j++) 
-	{
-		printf("send[%d]=0x%x ", j, sndbuf[j]);
-	}
-	printf("\n");
+	// for(int j = 0; j < i; j++) 
+	// {
+		// LogDebug("[%s:%s %u]  send[%d]=0x%x \n", __FILE__, __func__, __LINE__, j, sndbuf[j]);
+	// }
+
 	if (0 != writeDataTty(fd, sndbuf, i)) {
 		LogError("[%s:%s %u]  send error \n", __FILE__, __func__, __LINE__);
 		return -1;
@@ -429,15 +429,14 @@ int CSerial::ReadMessage(int fd, uint8_t *pData, int *BufLen)
 	// printf("read2:buf[0]=0x%x, buf[1]=0x%x\n", crcHTmp, crcLTmp);
 
 	if ((crcHTmp == crcH) && (crcLTmp == crcL)) {
-		// char TmpBuf[2];
-		// sprintf(TmpBuf, "%x", readbuf[3]);
-		// count = TmpBuf[0];
-		count = readbuf[3];
-		*BufLen = count * 2;
+		// count = readbuf[3];
+		// *BufLen = count * 2;
 		// if (0x10 != readbuf[3])
 			// printf("=====err：readbuf=%x, count=%d, len=%d\n", readbuf[3], count, *BufLen);
 
-		memcpy(pData, readbuf + 4, *BufLen);
+		//memcpy(pData, readbuf + 4, *BufLen);
+		*BufLen = readDataLen;
+		memcpy(pData, readbuf, readDataLen);
 		ret = 0;
 	}
 	else {
@@ -482,7 +481,6 @@ int CSerial::SerialOpen(void)
 int CSerial::SerialSend(uint8_t RegisterAdd, uint8_t Num, uint16_t *Data)
 {
 	int ret = -1;
-	LogDebug("[%s:%s %u]  SerialSend \n", __FILE__, __func__, __LINE__);
 
 	if (fdSerial >= 0) {
 		if (NULL == Data) {
@@ -511,14 +509,15 @@ int CSerial::SerialRecv()
 		RetRecv = ReadMessage(fdSerial, Databuf, &BufLen);
 		if (0 == RetRecv) {
 			int n = 1;
-			printf("len=%d\n", BufLen);
+			//printf("len=%d\n", BufLen);
+			LogDebug("[%s:%s %u]  \n", __FILE__, __func__, __LINE__);
 			for (int i = 0; i < BufLen; i++) {
-				printf("Rbuf[%d]=0x%x\t", i, Databuf[i]);
+				//printf("Rbuf[%d]=0x%x\t", i, Databuf[i]);
+				LogDebug("[%s:%s %u]  Rbuf[%d]=0x%x \n", __FILE__, __func__, __LINE__, i, Databuf[i]);
 				// if (n % 10 == 0 )
 					// printf("\n");
 				// n++;
 			}
-			printf("\n");
 
 			memset(Databuf, 0x00, SERIAL_BUF_SIZE);
 			RetRecv = -1;

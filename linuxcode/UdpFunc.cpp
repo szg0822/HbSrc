@@ -84,7 +84,7 @@ static UINT ImageNum = 1;		//保存上一张图像编号
 //低功耗
 static struct timeval m_start;
 static UCHAR PowerBuf[PC_SENDBUF_SIZE + 3] = { 0 };	//保存配置
-static int m_time = 600;		//600秒=10m
+static UINT m_time = 60;		//60秒=1m
 static struct timeval m_end;
 static UINT m_PowerDownFlag = 0;
 static UINT m_PowerOnFlag = 0;
@@ -750,6 +750,7 @@ int UdpFunc::UploadImageData(TCmdID cmdID, parameter_t ParaInfo)
 	}
 	LogDebug("[%s:%s %u]  UploadImageData success! \n", __FILE__, __func__, __LINE__);
 	mFrameNum++;		//帧号
+	GetStartTime();
 	return 0;
 }
 
@@ -1260,6 +1261,11 @@ void UdpFunc::InputLowerPower()
 	gettimeofday(&m_end, NULL);
 	diff = 1000000 * (m_end.tv_sec-m_start.tv_sec) + m_end.tv_usec - m_start.tv_usec;
 
+	//定时参数，最低定时1分钟
+	if (m_ParaInfo.Timing >= 60)
+		m_time = m_ParaInfo.Timing;
+	else
+		m_time = 60;
 	//Power Down
 	if (1 == m_PowerDownFlag) {
 		m_PowerDownFlag = 0;
@@ -1268,6 +1274,7 @@ void UdpFunc::InputLowerPower()
 
 	if (diff >= (m_time * CLOCKS_PER_SEC)) {
 		//LogError("[%s:%s %u]  ==========================Test:time=%ld \n", __FILE__, __func__, __LINE__, diff);
+		GetStartTime();
 		m_PowerOnFlag = 0;		//如果先按了唤醒，再去休眠，就会休眠失败；点击PowerOn是会记录标识的，会一直为1
 		//读取Fpga数据，组包发送Fpga
 		CreateCmd(CMDD_WRITE_PARA, NULL);
@@ -1439,12 +1446,12 @@ void UdpFunc::MySwitch(UCHAR RCmd, UCHAR *pRecvBuf)
 				m_ConnectFlag = 1;		//Connect 唤醒低功耗
 			}
 			break;
-		// case TEST1:
-			// cSerial.SerialSend(RegisterAdd1, Num1, NULL);
-			// break;
-		// case TEST2:
-			// cSerial.SerialSend(RegisterAdd2, Num2, NULL);
-			// break;
+		case TEST1:
+			cSerial.SerialSend(RegisterAdd1, Num1, NULL);
+			break;
+		case TEST2:
+			cSerial.SerialSend(RegisterAdd2, Num2, NULL);
+			break;
 		default:
 			break;
 	}
